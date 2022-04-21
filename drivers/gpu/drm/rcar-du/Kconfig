@@ -11,6 +11,18 @@ config DRM_RCAR_DU
 	  Choose this option if you have an R-Car chipset.
 	  If M is selected the module will be called rcar-du-drm.
 
+config DRM_RZG2L_DU
+	tristate "DRM Support for RZ/G2L DU"
+	depends on DRM && OF
+	depends on ARM || ARM64
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have an RZ/G2L chipset.
+	  If M is selected the module will be called rzg2l-du-drm.
+
 config DRM_RCAR_USE_CMM
 	bool "R-Car DU Color Management Module (CMM) Support"
 	depends on DRM_RCAR_DU
@@ -65,8 +77,9 @@ config DRM_RZG2L_MIPI_DSI
 config DRM_RCAR_VSP
 	bool "R-Car DU VSP Compositor Support" if ARM
 	default y if ARM64
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU || DRM_RZG2L_DU
 	depends on VIDEO_RENESAS_VSP1=y || (VIDEO_RENESAS_VSP1 && DRM_RCAR_DU=m)
+	depends on VIDEO_RENESAS_VSP1=y || (VIDEO_RENESAS_VSP1 && DRM_RZG2L_DU=m)
 	help
 	  Enable support to expose the R-Car VSP Compositor as KMS planes.
 
@@ -78,7 +91,7 @@ config DRM_RCAR_WRITEBACK
 config DRM_RCAR_LIB
 	bool
 	default y
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU || DRM_RZG2L_DU
 
 config DRM_RCAR_VSP_LIB
 	bool

@@ -6,6 +6,10 @@
  */
 
 /dts-v1/;
+
+/* comment the #define statement if OV5645 is not connected to CN1  */
+#define CAM_INTERFACE_OV5645	1
+
 #include "r9a07g044l2.dtsi"
 #include "rzg2l-smarc-som.dtsi"
 #include "rzg2l-smarc-pinfunction.dtsi"

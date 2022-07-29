@@ -132,6 +132,28 @@
 	};
 };
 
+#ifdef CRU_INTERFACE_AVAILABLE
+&cru {
+	status = "okay";
+};
+
+&csi2 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			csi2_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+#ifdef CAM_INTERFACE_OV5645
+				remote-endpoint = <&ov5645_ep>;
+#endif
+			};
+		};
+	};
+};
+#endif
+
 &ehci0 {
 	dr_mode = "otg";
 	status = "okay";
@@ -168,6 +190,7 @@
 			ov5645_ep: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
+				remote-endpoint = <&csi2_in>;
 			};
 		};
 	};

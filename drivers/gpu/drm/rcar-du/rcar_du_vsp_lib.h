@@ -25,6 +25,8 @@ void rcar_du_vsp_unmap_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
 int rcar_du_lib_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 			 unsigned int crtcs,
 			 const struct drm_plane_helper_funcs *rcar_du_vsp_plane_helper_funcs);
+int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
+				 struct drm_plane_state *state);
 #else
 static inline void rcar_du_vsp_disable(struct rcar_du_crtc *crtc) { };
 static inline void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc) { };
@@ -44,6 +46,11 @@ static inline int
 rcar_du_lib_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 		     unsigned int crtcs,
 		     const struct drm_plane_helper_funcs *rcar_du_vsp_plane_helper_funcs)
+{
+	return -ENXIO;
+}
+static inline int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
+					       struct drm_plane_state *state)
 {
 	return -ENXIO;
 }

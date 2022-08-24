@@ -51,4 +51,6 @@ int rcar_du_encoders_init(struct rcar_du_device *rcdu,
 						 enum rcar_du_output output,
 						 struct device_node *enc_node));
 
+int rcar_du_properties_init(struct rcar_du_device *rcdu);
+
 #endif /* __RCAR_DU_KMS_LIB_H__ */

@@ -88,19 +88,6 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 	vsp1_du_setup_lif(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }
 
-void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
-{
-	struct vsp1_du_atomic_pipe_config cfg = { { 0, } };
-	struct rcar_du_crtc_state *state;
-
-	state = to_rcar_crtc_state(crtc->crtc.state);
-	cfg.crc = state->crc;
-
-	rcar_du_writeback_setup(crtc, &cfg.writeback);
-
-	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
-}
-
 static const u32 rcar_du_vsp_formats[] = {
 	DRM_FORMAT_RGB332,
 	DRM_FORMAT_ARGB4444,

@@ -12,6 +12,10 @@
 
 #include <linux/types.h>
 
+struct drm_device;
+struct drm_file;
+struct drm_mode_create_dumb;
+
 struct rcar_du_format_info {
 	u32 fourcc;
 	u32 v4l2;
@@ -23,5 +27,8 @@ struct rcar_du_format_info {
 };
 
 const struct rcar_du_format_info *rcar_du_format_info(u32 fourcc);
+
+int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
+			struct drm_mode_create_dumb *args);
 
 #endif /* __RCAR_DU_KMS_LIB_H__ */

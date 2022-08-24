@@ -12,9 +12,12 @@
 
 #include <linux/types.h>
 
+struct dma_buf_attachment;
 struct drm_device;
 struct drm_file;
+struct drm_gem_object;
 struct drm_mode_create_dumb;
+struct sg_table;
 
 struct rcar_du_format_info {
 	u32 fourcc;
@@ -30,5 +33,9 @@ const struct rcar_du_format_info *rcar_du_format_info(u32 fourcc);
 
 int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
+
+struct drm_gem_object *rcar_du_gem_prime_import_sg_table(struct drm_device *dev,
+				struct dma_buf_attachment *attach,
+				struct sg_table *sgt);
 
 #endif /* __RCAR_DU_KMS_LIB_H__ */

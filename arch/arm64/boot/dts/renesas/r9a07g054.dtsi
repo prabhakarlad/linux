@@ -657,6 +657,7 @@
 				port@0 {
 					reg = <0>;
 					dsi_in: endpoint {
+						remote-endpoint = <&du_out_dsi>;
 					};
 				};
 
@@ -710,6 +711,9 @@
 
 				port@0 {
 					reg = <0>;
+					du_out_dsi: endpoint {
+						remote-endpoint = <&dsi_in>;
+					};
 				};
 
 				port@1 {

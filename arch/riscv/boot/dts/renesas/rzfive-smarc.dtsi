@@ -15,10 +15,6 @@
 	status = "disabled";
 };
 
-&spi1 {
-	status = "disabled";
-};
-
 &ssi1 {
 	status = "disabled";
 };

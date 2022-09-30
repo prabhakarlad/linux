@@ -6,19 +6,3 @@
  */
 
 #include <arm64/renesas/rzg2ul-smarc.dtsi>
-
-&sdhi1 {
-	status = "disabled";
-};
-
-&snd_rzg2l {
-	status = "disabled";
-};
-
-&ssi1 {
-	status = "disabled";
-};
-
-&vccq_sdhi1 {
-	status = "disabled";
-};

@@ -16,4 +16,17 @@
 	chosen {
 		bootargs = "ignore_loglevel";
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		reserved: linux,cma@58000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			linux,dma-default;
+			reg = <0x0 0x58000000 0x0 0x08000000>;
+		};
+	};
 };

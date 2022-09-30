@@ -16,8 +16,6 @@
 	chosen {
 		bootargs = "ignore_loglevel";
 	};
-
-	/delete-node/opp-table-0;
 };
 
 &dmac {

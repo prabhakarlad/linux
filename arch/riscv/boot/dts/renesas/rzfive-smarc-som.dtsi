@@ -21,10 +21,6 @@
 	/delete-node/thermal-zones;
 };
 
-&adc {
-	status = "disabled";
-};
-
 &dmac {
 	status = "disabled";
 };

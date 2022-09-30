@@ -7,18 +7,6 @@
 
 #include <arm64/renesas/rzg2ul-smarc.dtsi>
 
-&canfd {
-	status = "disabled";
-
-	channel0 {
-		status = "disabled";
-	};
-
-	channel1 {
-		status = "disabled";
-	};
-};
-
 &ehci0 {
 	status = "disabled";
 };

@@ -69,6 +69,34 @@
 				   new_c_2, vendor_id_2, errata_id_2,	\
 					IS_ENABLED(CONFIG_k_2)
 
+.macro __ALTERNATIVE_CFG_3 old_c, new_c_1, vendor_id_1, errata_id_1, enable_1, \
+				  new_c_2, vendor_id_2, errata_id_2, enable_2, \
+				  new_c_3, vendor_id_3, errata_id_3, enable_3
+886 :
+	.option push
+	.option norvc
+	.option norelax
+	\old_c
+	.option pop
+887 :
+	ALT_NEW_CONTENT \vendor_id_1, \errata_id_1, \enable_1, \new_c_1
+	ALT_NEW_CONTENT \vendor_id_2, \errata_id_2, \enable_2, \new_c_2
+	ALT_NEW_CONTENT \vendor_id_3, \errata_id_3, \enable_3, \new_c_3
+.endm
+
+#define _ALTERNATIVE_CFG_3(old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					CONFIG_k_1,			\
+				  new_c_2, vendor_id_2, errata_id_2,	\
+					CONFIG_k_2)			\
+				  new_c_3, vendor_id_3, errata_id_3,	\
+					CONFIG_k_3)			\
+	__ALTERNATIVE_CFG_3 old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					IS_ENABLED(CONFIG_k_1),		\
+				   new_c_2, vendor_id_2, errata_id_2,	\
+					IS_ENABLED(CONFIG_k_2)		\
+				   new_c_3, vendor_id_3, errata_id_3,	\
+					IS_ENABLED(CONFIG_k_3)
+
 #else /* !__ASSEMBLY__ */
 
 #include <asm/asm.h>
@@ -135,6 +163,36 @@
 				   new_c_2, vendor_id_2, errata_id_2,	\
 					IS_ENABLED(CONFIG_k_2))
 
+#define __ALTERNATIVE_CFG_3(old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					enable_1,			\
+				   new_c_2, vendor_id_2, errata_id_2,	\
+					enable_2)			\
+				   new_c_3, vendor_id_3, errata_id_3,	\
+					enable_3)			\
+	"886 :\n"							\
+	".option push\n"						\
+	".option norvc\n"						\
+	".option norelax\n"						\
+	old_c "\n"							\
+	".option pop\n"							\
+	"887 :\n"							\
+	ALT_NEW_CONTENT(vendor_id_1, errata_id_1, enable_1, new_c_1)	\
+	ALT_NEW_CONTENT(vendor_id_2, errata_id_2, enable_2, new_c_2)	\
+	ALT_NEW_CONTENT(vendor_id_3, errata_id_3, enable_3, new_c_3)
+
+#define _ALTERNATIVE_CFG_3(old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					CONFIG_k_1,			\
+				  new_c_2, vendor_id_2, errata_id_2,	\
+					CONFIG_k_2)			\
+				  new_c_3, vendor_id_3, errata_id_3,	\
+					CONFIG_k_3)			\
+	__ALTERNATIVE_CFG_3(old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					IS_ENABLED(CONFIG_k_1),		\
+				   new_c_2, vendor_id_2, errata_id_2,	\
+					IS_ENABLED(CONFIG_k_2))		\
+				   new_c_3, vendor_id_3, errata_id_3,	\
+					IS_ENABLED(CONFIG_k_3))
+
 #endif /* __ASSEMBLY__ */
 
 #else /* CONFIG_RISCV_ALTERNATIVE */
@@ -153,6 +211,14 @@
 					CONFIG_k_2)			\
        __ALTERNATIVE_CFG old_c
 
+#define _ALTERNATIVE_CFG_3(old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					CONFIG_k_1,			\
+				  new_c_2, vendor_id_2, errata_id_2,	\
+					CONFIG_k_2)			\
+				  new_c_3, vendor_id_3, errata_id_3,	\
+					CONFIG_k_3)			\
+       __ALTERNATIVE_CFG old_c
+
 #else /* !__ASSEMBLY__ */
 
 #define __ALTERNATIVE_CFG(old_c)  \
@@ -165,6 +231,14 @@
 					CONFIG_k_1,			\
 				  new_c_2, vendor_id_2, errata_id_2,	\
 					CONFIG_k_2) \
+       __ALTERNATIVE_CFG(old_c)
+
+#define _ALTERNATIVE_CFG_3(old_c, new_c_1, vendor_id_1, errata_id_1,	\
+					CONFIG_k_1,			\
+				  new_c_2, vendor_id_2, errata_id_2,	\
+					CONFIG_k_2) \
+				  new_c_3, vendor_id_3, errata_id_3,	\
+					CONFIG_k_3) \
        __ALTERNATIVE_CFG(old_c)
 
 #endif /* __ASSEMBLY__ */
@@ -201,5 +275,25 @@
 					    errata_id_1, CONFIG_k_1,	\
 					new_content_2, vendor_id_2,	\
 					    errata_id_2, CONFIG_k_2)
+
+/*
+ * A vendor wants to replace an old_content, but another vendor has used
+ * ALTERNATIVE() to patch its customized content at the same location. In
+ * this case, this vendor can create a new macro ALTERNATIVE_2() based
+ * on the following sample code and then replace ALTERNATIVE() with
+ * ALTERNATIVE_2() to append its customized content.
+ */
+#define ALTERNATIVE_3(old_content, new_content_1, vendor_id_1,		\
+					errata_id_1, CONFIG_k_1,	\
+				   new_content_2, vendor_id_2,		\
+					errata_id_2, CONFIG_k_2)	\
+				   new_content_3, vendor_id_3,		\
+					errata_id_3, CONFIG_k_3)	\
+	_ALTERNATIVE_CFG_3(old_content, new_content_1, vendor_id_1,	\
+					    errata_id_1, CONFIG_k_1,	\
+					new_content_2, vendor_id_2,	\
+					    errata_id_2, CONFIG_k_2)	\
+					new_content_3, vendor_id_3,	\
+					    errata_id_3, CONFIG_k_3)
 
 #endif

@@ -1,0 +1,56 @@
+image: gitlab.renesas.solutions:5050/spl2/continuous-integration/dockerfiles:linux__ubuntu-20.04-latest
+
+stages:
+  - dtchecks
+
+.build-dtchecks:
+  stage: dtchecks
+  variables:
+    GIT_STRATEGY: none
+    IMAGES_DIR: tmp-glibc/deploy/images/${MACHINE}
+    OUTPUT_DIR: ${CI_PROJECT_DIR}/output
+    BUILD_DIR: ${CI_PROJECT_DIR}/build
+    CI_DT_SCHEMA: 547c943
+    baselinelog: baselinelog.log
+  before_script:
+    - printenv
+    - rm -rf ${OUTPUT_DIR} ${BUILD_DIR}
+    - mkdir -p ${OUTPUT_DIR} ${BUILD_DIR}
+    - sudo apt-get -y update
+    - sudo apt install -y python3-ruamel.yaml libssl-dev sparse libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm bc sqlite3 libsqlite3-dev libdbd-sqlite3-perl libgmp-dev libmpc-dev
+    - pip3 install rfc3987
+    - pip3 install git+https://github.com/Julian/jsonschema.git
+    - wget https://gitlab.renesas.solutions/prabhakarlad/riscv-toolchain/-/raw/master/riscv-toolchain-12.2.0.zip?inline=false
+    - unzip riscv-toolchain-12.2.0.zip?inline=false -d ~/
+  script:
+    - cd ${BUILD_DIR}
+    - git clone https://repo.or.cz/smatch.git
+    - cd smatch && make -j$(nproc) && cd -
+    - git clone https://github.com/devicetree-org/dt-schema.git
+    - cd dt-schema && git checkout ${CI_DT_SCHEMA} && cd -
+    - cd dt-schema && pip3 install -e . && cd -
+    - cd dt-schema/tools && sudo cp * /usr/sbin && cd -
+    - dt-doc-validate --version
+    - cd /opt/linux && git fetch origin ${CI_COMMIT_BRANCH} && git checkout -b lcl${CI_COMMIT_BRANCH} origin/${CI_COMMIT_BRANCH}
+    - make CROSS_COMPILE=~/install/bin/riscv64-unknown-linux-gnu- ARCH=riscv allmodconfig
+    - make CROSS_COMPILE=~/install/bin/riscv64-unknown-linux-gnu- ARCH=riscv modules Image.gz dtbs -j$(nproc)
+    - make -s ARCH=arm allmodconfig
+    - make -s ARCH=arm refcheckdocs 2>&1 | tee doc-links-${baselinelog}
+    - make -O -j$(nproc) -s ARCH=arm DT_CHECKER_FLAGS=-m dt_binding_check 2>&1 | tee dt_binding_check.log
+    - make -O -j$(nproc) -s ARCH=arm DT_SCHEMA_FILES=Documentation/devicetree/bindings/cache/andestech,ax45mp-cache.yaml dtbs_check 2>&1 | tee -a arm-dtbs.log
+    - make -s ARCH=arm64 allmodconfig
+    - make -O -j$(nproc) -s ARCH=arm64 DT_SCHEMA_FILES=Documentation/devicetree/bindings/cache/andestech,ax45mp-cache.yaml dtbs_check 2>&1 | tee -a arm64-dtbs.log
+    - make -s ARCH=riscv allmodconfig
+    - make -O -j$(nproc) -s ARCH=riscv DT_SCHEMA_FILES=Documentation/devicetree/bindings/cache/andestech,ax45mp-cache.yaml dtbs_check 2>&1 | tee -a riscv-dtbs.log
+    - cp dt_binding_check.log arm-dtbs.log arm64-dtbs.log riscv-dtbs.log ${OUTPUT_DIR}
+    - cp doc-links-${baselinelog} ${OUTPUT_DIR}
+  artifacts:
+    name: "${CI_JOB_NAME}-${CI_JOB_ID}"
+    expire_in: 1 week
+    paths:
+      - ${OUTPUT_DIR}
+
+dt_checker:
+  extends: .build-dtchecks
+  variables:
+    CONFIG: defconfig

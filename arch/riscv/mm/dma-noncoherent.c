@@ -19,13 +19,25 @@ void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
 
 	switch (dir) {
 	case DMA_TO_DEVICE:
+#ifdef CONFIG_ERRATA_THEAD_CMO
 		ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
+#elif CONFIG_AX45MP_L2_CACHE
+		ALT_CMO_OP(ax45mp_cpu_dma_wb_range, vaddr, size, 0x0);
+#endif
 		break;
 	case DMA_FROM_DEVICE:
+#ifdef CONFIG_ERRATA_THEAD_CMO
 		ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
+#elif CONFIG_AX45MP_L2_CACHE
+		ALT_CMO_OP(ax45mp_cpu_dma_inval_range, vaddr, size, 0x0);
+#endif
 		break;
 	case DMA_BIDIRECTIONAL:
+#ifdef CONFIG_ERRATA_THEAD_CMO
 		ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
+#elif CONFIG_AX45MP_L2_CACHE
+		ALT_CMO_OP(ax45mp_cpu_dma_wb_range, vaddr, size, 0x0);
+#endif
 		break;
 	default:
 		break;
@@ -42,7 +54,11 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 		break;
 	case DMA_FROM_DEVICE:
 	case DMA_BIDIRECTIONAL:
+#ifdef CONFIG_ERRATA_THEAD_CMO
 		ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
+#elif CONFIG_AX45MP_L2_CACHE
+		ALT_CMO_OP(ax45mp_cpu_dma_inval_range, vaddr, size, 0x0);
+#endif
 		break;
 	default:
 		break;
@@ -51,14 +67,17 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 
 void arch_dma_prep_coherent(struct page *page, size_t size)
 {
+#ifdef CONFIG_ERRATA_THEAD_CMO
 	void *flush_addr = page_address(page);
 
 	ALT_CMO_OP(flush, flush_addr, size, riscv_cbom_block_size);
+#endif
 }
 
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		const struct iommu_ops *iommu, bool coherent)
 {
+#ifdef CONFIG_ERRATA_THEAD_CMO
 	WARN_TAINT(!coherent && riscv_cbom_block_size > ARCH_DMA_MINALIGN,
 		   TAINT_CPU_OUT_OF_SPEC,
 		   "%s %s: ARCH_DMA_MINALIGN smaller than riscv,cbom-block-size (%d < %d)",
@@ -70,6 +89,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		   dev_driver_string(dev), dev_name(dev));
 
 	dev->dma_coherent = coherent;
+#endif
 }
 
 void riscv_noncoherent_supported(void)

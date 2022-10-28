@@ -91,6 +91,7 @@ asm volatile(ALTERNATIVE(						\
 #define ALT_THEAD_PMA(_val)
 #endif
 
+#ifdef CONFIG_ERRATA_THEAD_CMO
 /*
  * dcache.ipa rs1 (invalidate, physical address)
  * | 31 - 25 | 24 - 20 | 19 - 15 | 14 - 12 | 11 - 7 | 6 - 0 |
@@ -157,5 +158,6 @@ asm volatile(ALTERNATIVE(						\
 	: "memory")
 
 #endif /* __ASSEMBLY__ */
+#endif
 
 #endif

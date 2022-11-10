@@ -298,6 +298,74 @@ static u32 __init_or_module cpufeature_probe(unsigned int stage)
 	return cpu_req_feature;
 }
 
+#include <asm/parse_asm.h>
+
+DECLARE_INSN(jalr, MATCH_JALR, MASK_JALR)
+DECLARE_INSN(auipc, MATCH_AUIPC, MASK_AUIPC)
+
+static inline bool is_auipc_jalr_pair(long insn1, long insn2)
+{
+	return is_auipc_insn(insn1) && is_jalr_insn(insn2);
+}
+
+#define JALR_SIGN_MASK		BIT(I_IMM_SIGN_OPOFF - I_IMM_11_0_OPOFF)
+#define JALR_OFFSET_MASK	I_IMM_11_0_MASK
+#define AUIPC_OFFSET_MASK	U_IMM_31_12_MASK
+#define AUIPC_PAD		(0x00001000)
+#define JALR_SHIFT		I_IMM_11_0_OPOFF
+
+#define to_jalr_imm(offset)						\
+	((offset & I_IMM_11_0_MASK) << I_IMM_11_0_OPOFF)
+
+#define to_auipc_imm(offset)						\
+	((offset & JALR_SIGN_MASK) ?					\
+	((offset & AUIPC_OFFSET_MASK) + AUIPC_PAD) :	\
+	(offset & AUIPC_OFFSET_MASK))
+
+static void riscv_alternative_fix_auipc_jalr(unsigned int *alt_ptr,
+					     unsigned int len, int patch_offset)
+{
+	int num_instr = len / sizeof(u32);
+	unsigned int call[2];
+	int i;
+	int imm1;
+	u32 rd1;
+
+	for (i = 0; i < num_instr; i++) {
+		/* is there a further instruction? */
+		if (i + 1 >= num_instr)
+			continue;
+
+		if (!is_auipc_jalr_pair(*(alt_ptr + i), *(alt_ptr + i + 1)))
+			continue;
+
+		/* call will use ra register */
+		rd1 = EXTRACT_RD_REG(*(alt_ptr + i));
+		if (rd1 != 1)
+			continue;
+
+		/* get and adjust new target address */
+		imm1 = EXTRACT_UTYPE_IMM(*(alt_ptr + i));
+		imm1 += EXTRACT_ITYPE_IMM(*(alt_ptr + i + 1));
+		imm1 -= patch_offset;
+
+		/* pick the original auipc + jalr */
+		call[0] = *(alt_ptr + i);
+		call[1] = *(alt_ptr + i + 1);
+
+		/* drop the old IMMs */
+		call[0] &= ~(U_IMM_31_12_MASK);
+		call[1] &= ~(I_IMM_11_0_MASK << I_IMM_11_0_OPOFF);
+
+		/* add the adapted IMMs */
+		call[0] |= to_auipc_imm(imm1);
+		call[1] |= to_jalr_imm(imm1);
+
+		/* patch the call place again */
+		patch_text_nosync(alt_ptr + i * sizeof(u32), call, 8);
+	}
+}
+
 void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 						  struct alt_entry *end,
 						  unsigned int stage)
@@ -316,8 +384,15 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		}
 
 		tmp = (1U << alt->errata_id);
-		if (cpu_req_feature & tmp)
-			patch_text_nosync(alt->old_ptr, alt->alt_ptr, alt->alt_len);
+		if (cpu_req_feature & tmp) {
+			/* do the basic patching */
+			patch_text_nosync(alt->old_ptr, alt->alt_ptr,
+					  alt->alt_len);
+
+			riscv_alternative_fix_auipc_jalr(alt->old_ptr,
+							 alt->alt_len,
+							 alt->old_ptr - alt->alt_ptr);
+		}
 	}
 }
 #endif

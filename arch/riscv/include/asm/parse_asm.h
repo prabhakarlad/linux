@@ -25,6 +25,15 @@
 #define J_IMM_11_MASK		GENMASK(0, 0)
 #define J_IMM_19_12_MASK	GENMASK(7, 0)
 
+/*
+ * U-type IMMs contain the upper 20bits [31:20] of an immediate with
+ * the rest filled in by zeros, so no shifting required. Similarly,
+ * bit31 contains the signed state, so no sign extension necessary.
+ */
+#define U_IMM_SIGN_OPOFF	31
+#define U_IMM_31_12_OPOFF	0
+#define U_IMM_31_12_MASK	GENMASK(31, 12)
+
 /* The bit field of immediate value in B-type instruction */
 #define B_IMM_SIGN_OPOFF	31
 #define B_IMM_10_5_OPOFF	25
@@ -182,6 +191,10 @@ static inline bool is_ ## INSN_NAME ## _insn(long insn) \
 #define RVC_IMM_SIGN(x) (-(((x) >> 12) & 1))
 #define RV_X(X, s, mask)  (((X) >> (s)) & (mask))
 #define RVC_X(X, s, mask) RV_X(X, s, mask)
+
+#define EXTRACT_UTYPE_IMM(x) \
+	({typeof(x) x_ = (x); \
+	(RV_X(x_, U_IMM_31_12_OPOFF, U_IMM_31_12_MASK)); })
 
 #define EXTRACT_JTYPE_IMM(x) \
 	({typeof(x) x_ = (x); \

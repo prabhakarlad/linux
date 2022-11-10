@@ -100,6 +100,7 @@
 #define RVC_C2_RD_OPOFF		7
 
 /* parts of opcode for RVG*/
+#define OPCODE_AUIPC		0x17
 #define OPCODE_BRANCH		0x63
 #define OPCODE_JALR		0x67
 #define OPCODE_JAL		0x6f
@@ -129,6 +130,7 @@
 
 #define FUNCT12_SRET		0x10200000
 
+#define MATCH_AUIPC		(OPCODE_AUIPC)
 #define MATCH_JALR		(FUNCT3_JALR | OPCODE_JALR)
 #define MATCH_JAL		(OPCODE_JAL)
 #define MATCH_BEQ		(FUNCT3_BEQ | OPCODE_BRANCH)
@@ -145,6 +147,7 @@
 #define MATCH_C_JR		(FUNCT4_C_JR | OPCODE_C_2)
 #define MATCH_C_JALR		(FUNCT4_C_JALR | OPCODE_C_2)
 
+#define MASK_AUIPC		0x7f
 #define MASK_JALR		0x707f
 #define MASK_JAL		0x7f
 #define MASK_C_JALR		0xf07f

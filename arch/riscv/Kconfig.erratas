@@ -1,5 +1,16 @@
 menu "CPU errata selection"
 
+config ERRATA_RZFIVE_CMO
+	bool "Apply Andes cache management errata"
+	depends on MMU
+	select RISCV_DMA_NONCOHERENT
+	default y
+	help
+	  This will apply the cache management errata to handle the
+	  non-standard handling on non-coherent operations on T-Head SoCs.
+
+	  If you don't know what to do here, say "Y".
+
 config ERRATA_SIFIVE
 	bool "SiFive errata"
 	depends on !XIP_KERNEL

@@ -48,6 +48,11 @@ static void __init_or_module riscv_fill_cpu_mfr_info(struct cpu_manufacturer_inf
 		cpu_mfr_info->patch_func = thead_errata_patch_func;
 		break;
 #endif
+#ifdef CONFIG_ERRATA_RZFIVE_CMO
+	case ANDESTECH_VENDOR_ID:
+		cpu_mfr_info->patch_func = andes_errata_patch_func;
+		break;
+#endif
 	default:
 		cpu_mfr_info->patch_func = NULL;
 	}

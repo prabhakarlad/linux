@@ -10,12 +10,12 @@
 
 void arch_wb_cache_pmem(void *addr, size_t size)
 {
-	ALT_CMO_OP(clean, addr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(clean, addr, size, riscv_cbom_block_size, -1, -1);
 }
 EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
 void arch_invalidate_pmem(void *addr, size_t size)
 {
-	ALT_CMO_OP(inval, addr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(inval, addr, size, riscv_cbom_block_size, -1, -1);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);

@@ -68,6 +68,14 @@ static inline void riscv_noncoherent_supported(void) {}
 #define SYS_RISCV_FLUSH_ICACHE_LOCAL 1UL
 #define SYS_RISCV_FLUSH_ICACHE_ALL   (SYS_RISCV_FLUSH_ICACHE_LOCAL)
 
+#ifdef CONFIG_AX45MP_L2_CACHE
+extern asmlinkage void ax45mp_no_iocp_cmo(unsigned int cache_size, void *vaddr,
+					  size_t size, int dir, int ops);
+#else
+static inline void ax45mp_no_iocp_cmo(unsigned int cache_size, void *vaddr,
+				      size_t size, int dir, int ops) {}
+#endif
+
 #include <asm-generic/cacheflush.h>
 
 #endif /* _ASM_RISCV_CACHEFLUSH_H */

@@ -28,11 +28,3 @@
 		/delete-property/ interrupts;
 	};
 };
-
-&ostm1 {
-	status = "disabled";
-};
-
-&ostm2 {
-	status = "disabled";
-};

@@ -7,6 +7,10 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
+
 /* comment the #define statement if OV5645 is not connected to CN1  */
 #define CAM_INTERFACE_OV5645	1
 #define CRU_INTERFACE_AVAILABLE	1
@@ -20,4 +24,24 @@
 / {
 	model = "Renesas SMARC EVK based on r9a07g044l2";
 	compatible = "renesas,smarc-evk", "renesas,r9a07g044l2", "renesas,r9a07g044";
+
+	keyboard {
+		compatible = "gpio-keys";
+		status = "okay";
+
+		key-1 {
+			gpios = <&pinctrl RZG2L_GPIO(41, 0) GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_3>;
+			label = "KEY3";
+			wkaeup-source;
+		};
+
+		key-2 {
+			gpios = <&pinctrl RZG2L_GPIO(43, 1) GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_4>;
+			label = "KEY4";
+			wkaeup-source;
+		};
+	};
+
 };

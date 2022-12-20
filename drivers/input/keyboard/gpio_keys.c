@@ -599,7 +599,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		bdata->debounce_timer.function = gpio_keys_debounce_timer;
 
 		isr = gpio_keys_gpio_isr;
-		irqflags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
+		irqflags = IRQF_TRIGGER_FALLING;
 
 		switch (button->wakeup_event_action) {
 		case EV_ACT_ASSERTED:

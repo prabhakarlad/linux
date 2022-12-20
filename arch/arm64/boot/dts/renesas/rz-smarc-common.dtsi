@@ -121,14 +121,14 @@
 &canfd {
 	pinctrl-0 = <&can0_pins &can1_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 
 	channel0 {
-		status = "okay";
+		status = "disabled";
 	};
 
 	channel1 {
-		status = "okay";
+		status = "disabled";
 	};
 };
 

@@ -38,6 +38,8 @@ obj-y				+= clk/
 # really early.
 obj-$(CONFIG_DMADEVICES)	+= dma/
 
+obj-y				+= cache/
+
 # SOC specific infrastructure drivers.
 obj-y				+= soc/
 

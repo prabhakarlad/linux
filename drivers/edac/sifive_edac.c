@@ -10,7 +10,7 @@
 #include <linux/edac.h>
 #include <linux/platform_device.h>
 #include "edac_module.h"
-#include <soc/sifive/sifive_ccache.h>
+#include <cache/sifive_ccache.h>
 
 #define DRVNAME "sifive_edac"
 

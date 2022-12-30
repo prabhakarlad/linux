@@ -1,9 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0
 
-if SOC_SIFIVE
+menuconfig CACHE_CONTROLLER
+	bool "Cache controller driver support"
+	default y if RISCV
+
+if CACHE_CONTROLLER
 
 config SIFIVE_CCACHE
 	bool "Sifive Composable Cache controller"
+	depends on RISCV
+	default y
 	help
 	  Support for the composable cache controller on SiFive platforms.
 

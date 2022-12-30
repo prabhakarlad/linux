@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/bitfield.h>
 #include <asm/cacheinfo.h>
-#include <soc/sifive/sifive_ccache.h>
+#include <cache/sifive_ccache.h>
 
 #define SIFIVE_CCACHE_DIRECCFIX_LOW 0x100
 #define SIFIVE_CCACHE_DIRECCFIX_HIGH 0x104

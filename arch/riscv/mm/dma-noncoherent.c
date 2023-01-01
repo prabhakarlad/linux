@@ -83,3 +83,24 @@ void riscv_noncoherent_supported(void)
 	     "Non-coherent DMA support enabled without a block size\n");
 	noncoherent_supported = true;
 }
+
+static struct riscv_cache_maint_ops *rv_cache_maint_ops;
+static DEFINE_STATIC_KEY_FALSE(cmo_patchfunc_present);
+
+void riscv_set_cache_maint_ops(struct riscv_cache_maint_ops *ops)
+{
+	rv_cache_maint_ops = ops;
+	static_branch_enable(&cmo_patchfunc_present);
+}
+EXPORT_SYMBOL_GPL(riscv_set_cache_maint_ops);
+
+#ifdef CONFIG_ERRATA_CMO_FUNC
+asmlinkage void cmo_patchfunc(unsigned int cache_size, void *vaddr, size_t size,
+			      int dir, int ops)
+{
+	if (!static_branch_unlikely(&cmo_patchfunc_present))
+		return;
+
+	rv_cache_maint_ops->cmo_patchfunc(cache_size, vaddr, size, dir, ops);
+}
+#endif

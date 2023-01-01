@@ -62,6 +62,25 @@ void riscv_noncoherent_supported(void);
 static inline void riscv_noncoherent_supported(void) {}
 #endif
 
+struct riscv_cache_maint_ops {
+	void (*cmo_patchfunc) (unsigned int cache_size, void *vaddr,
+			       size_t size, int dir, int ops);
+};
+
+#ifdef CONFIG_RISCV_DMA_NONCOHERENT
+void riscv_set_cache_maint_ops(struct riscv_cache_maint_ops *ops);
+#else
+static void riscv_set_cache_maint_ops(struct riscv_cache_maint_ops *ops) {}
+#endif
+
+#ifdef CONFIG_ERRATA_CMO_FUNC
+asmlinkage void cmo_patchfunc(unsigned int cache_size, void *vaddr, size_t size,
+			      int dir, int ops);
+#else
+__maybe_unused static void cmo_patchfunc(unsigned int cache_size, void *vaddr,
+					 size_t size, int dir, int ops) {}
+#endif
+
 /*
  * Bits in sys_riscv_flush_icache()'s flags argument.
  */

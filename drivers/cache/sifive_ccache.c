@@ -9,13 +9,15 @@
 #define pr_fmt(fmt) "CCACHE: " fmt
 
 #include <linux/debugfs.h>
+#include <linux/dma-direction.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/device.h>
 #include <linux/bitfield.h>
 #include <asm/cacheinfo.h>
-#include <soc/sifive/sifive_ccache.h>
+#include <asm/cacheflush.h>
+#include <cache/sifive_ccache.h>
 
 #define SIFIVE_CCACHE_DIRECCFIX_LOW 0x100
 #define SIFIVE_CCACHE_DIRECCFIX_HIGH 0x104
@@ -42,11 +44,15 @@
 #define SIFIVE_CCACHE_WAYENABLE 0x08
 #define SIFIVE_CCACHE_ECCINJECTERR 0x40
 
+#define SIFIVE_CCACHE_FLUSH64 0x200
+#define SIFIVE_CCACHE_FLUSH32 0x240
+
 #define SIFIVE_CCACHE_MAX_ECCINTR 4
 
 static void __iomem *ccache_base;
 static int g_irq[SIFIVE_CCACHE_MAX_ECCINTR];
 static struct riscv_cacheinfo_ops ccache_cache_ops;
+static struct riscv_cache_maint_ops ccache_cmos;
 static int level;
 
 enum {
@@ -205,6 +211,42 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 	return IRQ_HANDLED;
 }
 
+static void sifive_ccache_dma_wback_inv(void* vaddr, unsigned long size)
+{
+	void * __iomem flush = ccache_base + SIFIVE_CCACHE_FLUSH64;
+	phys_addr_t start = virt_to_phys(vaddr);
+	phys_addr_t aligned_start = start & ~0x3f;
+	u64 addr;
+	u64 end;
+	u64 aligned_end;
+
+	size += start - aligned_start;
+	end = start + size;
+	aligned_end = end += 0x3f;
+	aligned_end &= ~0x3f;
+
+	for (addr = aligned_start; addr < aligned_end; addr += 64)
+		writeq(addr, flush);
+}
+
+static void sifive_ccache_cmo(unsigned int cache_size, void *vaddr, size_t size,
+			      int dir, int ops)
+{
+	switch (dir) {
+	case DMA_TO_DEVICE:
+		sifive_ccache_dma_wback_inv(vaddr, size);
+		break;
+	case DMA_FROM_DEVICE:
+		sifive_ccache_dma_wback_inv(vaddr, size);
+		break;
+	case DMA_BIDIRECTIONAL:
+		sifive_ccache_dma_wback_inv(vaddr, size);
+		break;
+	default:
+		break;
+	}
+}
+
 static int __init sifive_ccache_init(void)
 {
 	struct device_node *np;
@@ -253,6 +295,9 @@ static int __init sifive_ccache_init(void)
 
 	ccache_cache_ops.get_priv_group = ccache_get_priv_group;
 	riscv_set_cacheinfo_ops(&ccache_cache_ops);
+
+	ccache_cmos.cmo_patchfunc = sifive_ccache_cmo;
+	riscv_set_cache_maint_ops(&ccache_cmos);
 
 #ifdef CONFIG_DEBUG_FS
 	setup_sifive_debug();

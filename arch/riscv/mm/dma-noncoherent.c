@@ -9,23 +9,38 @@
 #include <linux/dma-map-ops.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
+#include <asm/dma-noncoherent.h>
 
 static bool noncoherent_supported;
+
+struct riscv_cache_ops noncoherent_cache_ops = {
+	.clean_range = NULL,
+	.inv_range = NULL,
+	.flush_range = NULL,
+	.cmo_universal = NULL,
+};
+EXPORT_SYMBOL_GPL(noncoherent_cache_ops);
 
 void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
 			      enum dma_data_direction dir)
 {
 	void *vaddr = phys_to_virt(paddr);
 
+	if (noncoherent_cache_ops.cmo_universal) {
+		noncoherent_cache_ops.cmo_universal(vaddr, size, dir,
+						    NON_COHERENT_SYNC_DMA_FOR_DEVICE);
+		return;
+	}
+
 	switch (dir) {
 	case DMA_TO_DEVICE:
-		ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
+		riscv_dma_noncoherent_clean(vaddr, size);
 		break;
 	case DMA_FROM_DEVICE:
-		ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
+		riscv_dma_noncoherent_clean(vaddr, size);
 		break;
 	case DMA_BIDIRECTIONAL:
-		ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
+		riscv_dma_noncoherent_flush(vaddr, size);
 		break;
 	default:
 		break;
@@ -37,12 +52,18 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 {
 	void *vaddr = phys_to_virt(paddr);
 
+	if (noncoherent_cache_ops.cmo_universal) {
+		noncoherent_cache_ops.cmo_universal(vaddr, size, dir,
+						    NON_COHERENT_SYNC_DMA_FOR_CPU);
+		return;
+	}
+
 	switch (dir) {
 	case DMA_TO_DEVICE:
 		break;
 	case DMA_FROM_DEVICE:
 	case DMA_BIDIRECTIONAL:
-		ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
+		riscv_dma_noncoherent_flush(vaddr, size);
 		break;
 	default:
 		break;
@@ -53,7 +74,13 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	void *flush_addr = page_address(page);
 
-	ALT_CMO_OP(flush, flush_addr, size, riscv_cbom_block_size);
+	if (noncoherent_cache_ops.cmo_universal) {
+		noncoherent_cache_ops.cmo_universal(flush_addr, size, -1,
+						    NON_COHERENT_DMA_PREP);
+		return;
+	}
+
+	riscv_dma_noncoherent_flush(flush_addr, size);
 }
 
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
@@ -78,3 +105,12 @@ void riscv_noncoherent_supported(void)
 	     "Non-coherent DMA support enabled without a block size\n");
 	noncoherent_supported = true;
 }
+
+void riscv_noncoherent_register_cache_ops(const struct riscv_cache_ops *ops)
+{
+	if (!ops)
+		return;
+
+	noncoherent_cache_ops = *ops;
+}
+EXPORT_SYMBOL_GPL(riscv_noncoherent_register_cache_ops);

@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
+#include <asm/dma-noncoherent.h>
 #include <asm/errata_list.h>
 #include <asm/hwcap.h>
 #include <asm/patch.h>
@@ -286,6 +287,50 @@ static bool __init_or_module cpufeature_probe_svpbmt(unsigned int stage)
 	return riscv_isa_extension_available(NULL, SVPBMT);
 }
 
+#ifdef CONFIG_RISCV_ISA_ZICBOM
+
+#define ZICBOM_CMO_OP(_op, _start, _size, _cachesize)				\
+	asm volatile("mv a0, %1\n\t"						\
+		     "j 2f\n\t"							\
+		     "3:\n\t"							\
+		     CBO_##_op(a0)						\
+		     "add a0, a0, %0\n\t"					\
+		     "2:\n\t"							\
+		     "bltu a0, %2, 3b\n\t"					\
+		     : : "r"(_cachesize),					\
+			 "r"((unsigned long)(_start) & ~((_cachesize) - 1UL)),	\
+			 "r"((unsigned long)(_start) + (_size))			\
+		     : "a0")
+
+static void zicbom_cmo_clean_range(unsigned long addr, unsigned long size)
+{
+	ZICBOM_CMO_OP(clean, addr, size, riscv_cbom_block_size);
+}
+
+static void zicbom_cmo_flush_range(unsigned long addr, unsigned long size)
+{
+	ZICBOM_CMO_OP(flush, addr, size, riscv_cbom_block_size);
+}
+
+static void zicbom_cmo_inval_range(unsigned long addr, unsigned long size)
+{
+	ZICBOM_CMO_OP(inval, addr, size, riscv_cbom_block_size);
+}
+
+const struct riscv_cache_ops zicbom_cmo_ops = {
+	.clean_range = &zicbom_cmo_clean_range,
+	.inv_range = &zicbom_cmo_inval_range,
+	.flush_range = &zicbom_cmo_flush_range,
+};
+
+static void zicbom_register_cmo_ops(void)
+{
+	riscv_noncoherent_register_cache_ops(&zicbom_cmo_ops);
+}
+#else
+static void zicbom_register_cmo_ops(void) {}
+#endif
+
 static bool __init_or_module cpufeature_probe_zicbom(unsigned int stage)
 {
 	if (!IS_ENABLED(CONFIG_RISCV_ISA_ZICBOM))
@@ -298,6 +343,7 @@ static bool __init_or_module cpufeature_probe_zicbom(unsigned int stage)
 		return false;
 
 	riscv_noncoherent_supported();
+	zicbom_register_cmo_ops();
 	return true;
 }
 

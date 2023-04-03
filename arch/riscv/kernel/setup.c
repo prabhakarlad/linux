@@ -300,8 +300,7 @@ void __init setup_arch(char **cmdline_p)
 	riscv_init_cbo_blocksizes();
 	riscv_fill_hwcap();
 	apply_boot_alternatives();
-	if (IS_ENABLED(CONFIG_RISCV_ISA_ZICBOM) &&
-	    riscv_isa_extension_available(NULL, ZICBOM))
+	if (riscv_isa_extension_available(NULL, ZICBOM))
 		riscv_noncoherent_supported();
 }
 

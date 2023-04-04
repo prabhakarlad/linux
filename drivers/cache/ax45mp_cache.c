@@ -22,6 +22,7 @@
 /* D-cache operation */
 #define AX45MP_CCTL_L1D_VA_INVAL		0 /* Invalidate an L1 cache entry */
 #define AX45MP_CCTL_L1D_VA_WB			1 /* Write-back an L1 cache entry */
+#define AX45MP_CCTL_L1D_VA_WBINVAL		2 /* Write-back and invalidate L1 cache entry */
 
 /* L2 CCTL status */
 #define AX45MP_CCTL_L2_STATUS_IDLE		0
@@ -32,6 +33,7 @@
 /* L2 cache operation */
 #define AX45MP_CCTL_L2_PA_INVAL			0x8 /* Invalidate an L2 cache entry */
 #define AX45MP_CCTL_L2_PA_WB			0x9 /* Write-back an L2 cache entry */
+#define AX45MP_CCTL_L2_PA_WBINVAL		0xa /* Write-back and invalidate an L2 cache entry */
 
 #define AX45MP_L2C_REG_PER_CORE_OFFSET		0x10
 #define AX45MP_CCTL_L2_STATUS_PER_CORE_OFFSET	4
@@ -103,7 +105,16 @@ static inline void ax45mp_cpu_dcache_inval_range(unsigned long start, unsigned l
 				   AX45MP_CCTL_L2_PA_INVAL);
 }
 
-static void ax45mp_dma_cache_inv(void *vaddr, unsigned long size)
+/* Write-back and invalidate the L1 and L2 cache entry */
+static inline void ax45mp_cpu_dcache_wbinval_range(unsigned long start, unsigned long end,
+						   unsigned long line_size)
+{
+	ax45mp_cpu_cache_operation(start, end, line_size,
+				   AX45MP_CCTL_L1D_VA_WBINVAL,
+				   AX45MP_CCTL_L2_PA_WBINVAL);
+}
+
+static void ax45mp_dma_cache_inv_helper(void *vaddr, unsigned long size, bool wbinval)
 {
 	unsigned long start = (unsigned long)vaddr;
 	char cache_buf[2][AX45MP_CACHE_LINE_SIZE];
@@ -129,12 +140,20 @@ static void ax45mp_dma_cache_inv(void *vaddr, unsigned long size)
 	if (unlikely(end != old_end))
 		memcpy(&cache_buf[1][0], (void *)(old_end & (~(line_size - 1))), line_size);
 
-	ax45mp_cpu_dcache_inval_range(start, end, line_size);
+	if (wbinval)
+		ax45mp_cpu_dcache_wbinval_range(start, end, line_size);
+	else
+		ax45mp_cpu_dcache_inval_range(start, end, line_size);
 
 	if (unlikely(start != old_start))
 		memcpy((void *)start, &cache_buf[0][0], (old_start & (line_size - 1)));
 
 	local_irq_restore(flags);
+}
+
+static void ax45mp_dma_cache_inv(void *vaddr, unsigned long size)
+{
+	ax45mp_dma_cache_inv_helper(vaddr, size, false);
 }
 
 static void ax45mp_dma_cache_wback(void *vaddr, unsigned long size)
@@ -153,8 +172,7 @@ static void ax45mp_dma_cache_wback(void *vaddr, unsigned long size)
 
 static void ax45mp_dma_cache_wback_inv(void *vaddr, unsigned long size)
 {
-	ax45mp_dma_cache_wback(vaddr, size);
-	ax45mp_dma_cache_inv(vaddr, size);
+	ax45mp_dma_cache_inv_helper(vaddr, size, true);
 }
 
 static int ax45mp_get_l2_line_size(struct device_node *np)

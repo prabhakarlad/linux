@@ -59,6 +59,15 @@ void riscv_noncoherent_supported(void);
 static inline void riscv_noncoherent_supported(void) {}
 #endif
 
+#ifdef CONFIG_AX45MP_L2_CACHE
+extern asmlinkage void ax45mp_dma_cache_wback_inv(void *vaddr, unsigned long size);
+extern asmlinkage void ax45mp_dma_cache_wback(void *vaddr, unsigned long size);
+extern asmlinkage void ax45mp_dma_cache_inv(void *vaddr, unsigned long size);
+#else
+static inline void ax45mp_dma_cache_wback_inv(void *vaddr, unsigned long size) {}
+static inline void ax45mp_dma_cache_wback(void *vaddr, unsigned long size) {}
+static inline void ax45mp_dma_cache_inv(void *vaddr, unsigned long size) {}
+#endif
 /*
  * Bits in sys_riscv_flush_icache()'s flags argument.
  */

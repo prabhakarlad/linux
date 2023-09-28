@@ -22,3 +22,7 @@
 		/delete-property/ interrupts;
 	};
 };
+
+&sbc {
+	status = "disabled";
+};

@@ -1,3 +1,269 @@
-include:
-  - https://gitlab.com/cip-project/cip-testing/linux-cip-pipelines/raw/master/linux-cip-pipeline.yml
-  - https://gitlab.com/cip-project/cip-testing/linux-cip-pipelines/raw/master/trees/linux-5.10.y-cip.yml
+stages:
+  - build
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_IMAGE_TAG: v4
+  GCC_VER: "11.1.0"
+  GET_SOURCES_ATTEMPTS: 3
+
+before_script:
+  - echo "Using DOCKER_IMAGE_TAG $DOCKER_IMAGE_TAG"
+
+.build-base:
+  stage: build
+  tags:
+    - yocto
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 10
+  script:
+    - /opt/build_kernel.sh && /opt/build_report.sh "pass" || /opt/build_report.sh "fail"
+  artifacts:
+    name: "$CI_JOB_NAME"
+    when: always
+    expire_in: 1 month
+    paths:
+      - output
+
+.build:
+  extends: .build-base
+  image: registry.gitlab.com/cip-project/cip-testing/linux-cip-ci:build-$DOCKER_IMAGE_TAG
+
+.build-debian-base:
+  extends: .build-base
+  image: registry.gitlab.com/cip-project/cip-testing/linux-cip-ci:build-$DEB_SUITE-$DOCKER_IMAGE_TAG
+
+.build-debian-buster:
+  extends: .build-debian-base
+  variables:
+    DEB_SUITE: buster
+
+.build-debian-bullseye:
+  extends: .build-debian-base
+  variables:
+    DEB_SUITE: bullseye
+
+.build-debian-bookworm:
+  extends: .build-debian-base
+  variables:
+    DEB_SUITE: bookworm
+
+.only-rt:
+  only:
+    - /^.*-rt$/
+    - /^.*-rt-rebase$/
+
+.only-rc: # Could be used for rt and non-rt branches
+  only:
+    - /^.*-rc$/
+
+.only-rebase:
+  only:
+    - /^.*rebase$/
+
+######################################
+# Build: Standard CIP configurations #
+######################################
+build:arm_cip_bbb_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: cip_bbb_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_hitachi_cyclonev_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: hitachi_cyclonev_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_hitachi_omap_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: hitachi_omap_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_moxa_mxc_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: moxa_mxc_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_qemu_arm_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: qemu_arm_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_renesas_shmobile_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: renesas_shmobile_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_siemens_de0-nano-soc_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: siemens_de0-nano-soc_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm_siemens_imx6_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: siemens_imx6_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm64_ctj_zynqmp_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm64
+    CONFIG: ctj_zynqmp_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm64_moxa_eds_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm64
+    CONFIG: moxa_eds_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm64_qemu_arm64_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm64
+    CONFIG: qemu_arm64_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:arm64_renesas_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm64
+    CONFIG: renesas_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:riscv_qemu_riscv64_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: riscv
+    CONFIG: qemu_riscv64_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:x86_cip_qemu_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: cip_qemu_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:x86_plathome_obsvx2_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: plathome_obsvx2_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:x86_siemens_iot2000_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: siemens_iot2000_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:x86_siemens_ipc227e_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: siemens_ipc227e_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:x86_siemens_server_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: siemens_server_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:x86_toshiba_atom_baytrail_cip_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: toshiba_atom_baytrail_cip_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+################################
+# Build: RT CIP configurations #
+################################
+build:rt_arm_renesas_shmobile-rt_defconfig:
+  extends:
+    - .build-debian-bullseye
+    - .only-rt
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: renesas_shmobile-rt_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:rt_arm_socfpga_defconfig:
+  extends:
+    - .build-debian-bullseye
+    - .only-rt
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: socfpga_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:rt_arm64_renesas-rt_defconfig:
+  extends:
+    - .build-debian-bullseye
+    - .only-rt
+  variables:
+    BUILD_ARCH: arm64
+    CONFIG: renesas-rt_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+build:rt_x86_siemens_i386-rt_defconfig:
+  extends:
+    - .build-debian-bullseye
+    - .only-rt
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: siemens_i386-rt_defconfig
+    CONFIG_LOC: cip-kernel-config
+
+#####################################
+# Build: Other build configurations #
+#####################################
+build:arm_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: defconfig
+    CONFIG_LOC: intree
+
+build:arm64_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: arm64
+    CONFIG: defconfig
+    CONFIG_LOC: intree
+
+build:riscv_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: riscv
+    CONFIG: defconfig
+    CONFIG_LOC: intree
+
+build:x86_defconfig:
+  extends: .build-debian-bullseye
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: defconfig
+    CONFIG_LOC: intree

@@ -1,0 +1,99 @@
+image: gitlab.renesas.solutions:5050/spl2/continuous-integration/dockerfiles:linux__ubuntu-20.04-latest
+
+stages:
+  - build
+
+.build-dtchecks:
+  stage: build
+  variables:
+    GIT_STRATEGY: none
+    IMAGES_DIR: tmp-glibc/deploy/images/${MACHINE}
+    OUTPUT_DIR: ${CI_PROJECT_DIR}/output
+    BUILD_DIR: ${CI_PROJECT_DIR}/build
+    CI_DT_SCHEMA: 414a9f792ff7ae20a54a560bd2e2160b70f7d566
+    baselinelog: baselinelog.log
+  before_script:
+    - printenv
+    - rm -rf ${OUTPUT_DIR} ${BUILD_DIR}
+    - mkdir -p ${OUTPUT_DIR} ${BUILD_DIR}
+    - pip3 install git+https://github.com/devicetree-org/dt-schema.git@master
+    - sudo cp /home/user/.local/bin/* /usr/bin/
+    - dt-doc-validate --version
+    - sudo apt-get -y update
+    - sudo apt install -y python3-ruamel.yaml libssl-dev sparse libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm bc sqlite3 libsqlite3-dev libdbd-sqlite3-perl libgmp-dev libmpc-dev swig python3
+    - pip3 install rfc3987
+    - wget https://gitlab.renesas.solutions/prabhakarlad/riscv-toolchain/-/raw/master/2023.11.08.tar.gz?inline=false
+    - mkdir ~/rv64-cross-compile && tar -xvf 2023.11.08.tar.gz?inline=false -C ~/rv64-cross-compile
+    - wget https://gitlab.renesas.solutions/prabhakarlad/riscv-toolchain/-/raw/master/rv32-2023.03.14.tar.gz?inline=false
+    - mkdir ~/rv32-cross-compile && tar -xvf rv32-2023.03.14.tar.gz?inline=false -C ~/rv32-cross-compile
+  script:
+    - cd ${BUILD_DIR}
+    - git clone https://repo.or.cz/smatch.git
+    - cd smatch && make -j$(nproc) && cd -
+    - cd /opt/linux
+    - git remote add cip-internal git@gitlab.renesas.solutions:spl2/civil-infrastructure-platform/cip-linux.git
+    - git fetch cip-internal ${CI_COMMIT_BRANCH} && git checkout -b lcl${CI_COMMIT_BRANCH} cip-internal/${CI_COMMIT_BRANCH}
+    - make CROSS_COMPILE=~/rv64-cross-compile/2023.11.08/bin/riscv64-unknown-linux-gnu- ARCH=riscv rzfive_defconfig
+    - make CROSS_COMPILE=~/rv64-cross-compile/2023.11.08/bin/riscv64-unknown-linux-gnu- ARCH=riscv modules Image.gz dtbs -j$(nproc) W=1
+    - cp arch/riscv/boot/dts/renesas/r9a07g043f01-smarc.dtb arch/riscv/boot/Image.gz ${OUTPUT_DIR}
+    - cp drivers/dma/dmatest.ko ${OUTPUT_DIR}
+    - make -s ARCH=arm allmodconfig
+    - make -s ARCH=arm refcheckdocs 2>&1 | tee doc-links-${baselinelog}
+    - make -O -j$(nproc) ARCH=arm -s DT_CHECKER_FLAGS=-m dt_binding_check 2>&1 | tee dt_binding_check.log
+    - make -O -j$(nproc) ARCH=arm -s DT_SCHEMA_FILES=Documentation/devicetree/bindings/interrupt-controller/renesas,rzg2l-irqc.yaml dtbs_check 2>&1 | tee -a arm-dtbs.log
+    - make -s ARCH=arm64 allmodconfig
+    - make -O -j$(nproc) -s ARCH=arm64 DT_SCHEMA_FILES=Documentation/devicetree/bindings/interrupt-controller/renesas,rzg2l-irqc.yaml dtbs_check 2>&1 | tee -a arm64-dtbs.log
+    - make -s ARCH=riscv allmodconfig
+    - make -O -j$(nproc) -s ARCH=riscv DT_SCHEMA_FILES=Documentation/devicetree/bindings/interrupt-controller/renesas,rzg2l-irqc.yaml dtbs_check 2>&1 | tee -a riscv-dtbs.log
+    - cp dt_binding_check.log arm-dtbs.log arm64-dtbs.log riscv-dtbs.log ${OUTPUT_DIR}
+    - cp doc-links-${baselinelog} ${OUTPUT_DIR}
+  artifacts:
+    name: "${CI_JOB_NAME}-${CI_JOB_ID}"
+    expire_in: 1 day
+    paths:
+      - ${OUTPUT_DIR}
+
+.build-kernel:
+  stage: build
+  script:
+    - sudo apt-get -y update
+    - sudo apt install -y python3-ruamel.yaml libssl-dev sparse libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm bc sqlite3 libsqlite3-dev libdbd-sqlite3-perl libgmp-dev libmpc-dev bc
+    - make clean distclean
+    - make ${CONFIG}
+    - make -j$(nproc) ${BUILD} W=1
+    - mkdir output
+  artifacts:
+    name: "${CI_JOB_NAME}-${CI_JOB_ID}"
+    expire_in: 1 day
+    paths:
+      - output
+
+dt_checker:
+  extends: .build-dtchecks
+  variables:
+    CONFIG: defconfig
+
+arm64:
+  extends: .build-kernel
+  when: manual
+  variables:
+    CONFIG: renesas_defconfig
+    BUILD: modules Image.gz dtbs
+  before_script:
+    - wget https://toolchains.bootlin.com/downloads/releases/toolchains/aarch64/tarballs/aarch64--glibc--stable-2023.08-1.tar.bz2
+    - mkdir ~/arm64-cross-compile && tar -xvf aarch64--glibc--stable-2023.08-1.tar.bz2 -C ~/arm64-cross-compile
+    - export CROSS_COMPILE=~/arm64-cross-compile/aarch64--glibc--stable-2023.08-1/bin/aarch64-linux-
+    - export ARCH=arm64
+
+arm32:
+  extends: .build-kernel
+  when: manual
+  variables:
+    CONFIG: multi_v7_defconfig
+    BUILD: modules zImage dtbs
+  before_script:
+    - wget https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/armv7-eabihf--glibc--stable-2023.08-1.tar.bz2
+    - mkdir ~/arm-cross-compile && tar -xvf armv7-eabihf--glibc--stable-2023.08-1.tar.bz2 -C ~/arm-cross-compile
+    - export CROSS_COMPILE=~/arm-cross-compile/armv7-eabihf--glibc--stable-2023.08-1/bin/arm-linux-
+    - sudo apt-get update -y && sudo apt-get install -y u-boot-tools
+    - export ARCH=arm

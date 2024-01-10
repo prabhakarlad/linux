@@ -37,6 +37,8 @@
 #define TSSEL_SHIFT(n)			(8 * (n))
 #define TSSEL_MASK			GENMASK(7, 0)
 #define IRQ_MASK			0x3
+#define IMSK				0x10010
+#define TMSK				0x10020
 
 #define TSSR_OFFSET(n)			((n) % 4)
 #define TSSR_INDEX(n)			((n) / 4)
@@ -67,14 +69,24 @@ struct rzg2l_irqc_reg_cache {
 };
 
 /**
+ * struct rzg2l_irqc_of_data - OF data structure
+ * @mask_supported: Indicates if mask registers are available
+ */
+struct rzg2l_irqc_of_data {
+	bool	mask_supported;
+};
+
+/**
  * struct rzg2l_irqc_priv - IRQ controller private data structure
  * @base:	Controller's base address
+ * @data:	OF data pointer
  * @fwspec:	IRQ firmware specific data
  * @lock:	Lock to serialize access to hardware registers
  * @cache:	Registers cache for suspend/resume
  */
 static struct rzg2l_irqc_priv {
 	void __iomem			*base;
+	const struct rzg2l_irqc_of_data	*data;
 	struct irq_fwspec		fwspec[IRQC_NUM_IRQ];
 	raw_spinlock_t			lock;
 	struct rzg2l_irqc_reg_cache	cache;
@@ -129,44 +141,136 @@ static void rzg2l_irqc_eoi(struct irq_data *d)
 	irq_chip_eoi_parent(d);
 }
 
+static void rzg2l_irqc_mask_irq_interrupt(struct rzg2l_irqc_priv *priv,
+					  unsigned int hwirq)
+{
+	u32 imsk = readl_relaxed(priv->base + IMSK);
+	u32 bit = BIT(hwirq - IRQC_IRQ_START);
+
+	writel_relaxed(imsk | bit, priv->base + IMSK);
+}
+
+static void rzg2l_irqc_unmask_irq_interrupt(struct rzg2l_irqc_priv *priv,
+					    unsigned int hwirq)
+{
+	u32 imsk = readl_relaxed(priv->base + IMSK);
+	u32 bit = BIT(hwirq - IRQC_IRQ_START);
+
+	writel_relaxed(imsk & ~bit, priv->base + IMSK);
+}
+
+static void rzg2l_irqc_mask_tint_interrupt(struct rzg2l_irqc_priv *priv,
+					   unsigned int hwirq)
+{
+	u32 tmsk = readl_relaxed(priv->base + TMSK);
+	u32 bit = BIT(hwirq - IRQC_TINT_START);
+
+	writel_relaxed(tmsk | bit, priv->base + TMSK);
+}
+
+static void rzg2l_irqc_unmask_tint_interrupt(struct rzg2l_irqc_priv *priv,
+					     unsigned int hwirq)
+{
+	u32 tmsk = readl_relaxed(priv->base + TMSK);
+	u32 bit = BIT(hwirq - IRQC_TINT_START);
+
+	writel_relaxed(tmsk & ~bit, priv->base + TMSK);
+}
+
+/* Must be called while priv->lock is held */
+static void rzg2l_irqc_mask_once(struct rzg2l_irqc_priv *priv, unsigned int hwirq)
+{
+	if (!priv->data->mask_supported)
+		return;
+
+	if (hwirq >= IRQC_IRQ_START && hwirq <= IRQC_IRQ_COUNT)
+		rzg2l_irqc_mask_irq_interrupt(priv, hwirq);
+	else if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ)
+		rzg2l_irqc_mask_tint_interrupt(priv, hwirq);
+}
+
+static void rzg2l_irqc_mask(struct irq_data *d)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+
+	raw_spin_lock(&priv->lock);
+	rzg2l_irqc_mask_once(priv, irqd_to_hwirq(d));
+	raw_spin_unlock(&priv->lock);
+	irq_chip_mask_parent(d);
+}
+
+/* Must be called while priv->lock is held */
+static void rzg2l_irqc_unmask_once(struct rzg2l_irqc_priv *priv, unsigned int hwirq)
+{
+	if (!priv->data->mask_supported)
+		return;
+
+	if (hwirq >= IRQC_IRQ_START && hwirq <= IRQC_IRQ_COUNT)
+		rzg2l_irqc_unmask_irq_interrupt(priv, hwirq);
+	else if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ)
+		rzg2l_irqc_unmask_tint_interrupt(priv, hwirq);
+}
+
+static void rzg2l_irqc_unmask(struct irq_data *d)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+
+	raw_spin_lock(&priv->lock);
+	rzg2l_irqc_unmask_once(priv, irqd_to_hwirq(d));
+	raw_spin_unlock(&priv->lock);
+	irq_chip_unmask_parent(d);
+}
+
 static void rzg2l_irqc_irq_disable(struct irq_data *d)
 {
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 	unsigned int hw_irq = irqd_to_hwirq(d);
 
 	if (hw_irq >= IRQC_TINT_START && hw_irq < IRQC_NUM_IRQ) {
-		struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 		u32 offset = hw_irq - IRQC_TINT_START;
 		u32 tssr_offset = TSSR_OFFSET(offset);
 		u8 tssr_index = TSSR_INDEX(offset);
 		u32 reg;
 
 		raw_spin_lock(&priv->lock);
+		rzg2l_irqc_mask_once(priv, hw_irq);
 		reg = readl_relaxed(priv->base + TSSR(tssr_index));
 		reg &= ~(TSSEL_MASK << TSSEL_SHIFT(tssr_offset));
 		writel_relaxed(reg, priv->base + TSSR(tssr_index));
 		raw_spin_unlock(&priv->lock);
+	} else {
+		raw_spin_lock(&priv->lock);
+		rzg2l_irqc_mask_once(priv, hw_irq);
+		raw_spin_unlock(&priv->lock);
 	}
+
 	irq_chip_disable_parent(d);
 }
 
 static void rzg2l_irqc_irq_enable(struct irq_data *d)
 {
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 	unsigned int hw_irq = irqd_to_hwirq(d);
 
 	if (hw_irq >= IRQC_TINT_START && hw_irq < IRQC_NUM_IRQ) {
 		unsigned long tint = (uintptr_t)irq_data_get_irq_chip_data(d);
-		struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 		u32 offset = hw_irq - IRQC_TINT_START;
 		u32 tssr_offset = TSSR_OFFSET(offset);
 		u8 tssr_index = TSSR_INDEX(offset);
 		u32 reg;
 
 		raw_spin_lock(&priv->lock);
+		rzg2l_irqc_unmask_once(priv, hw_irq);
 		reg = readl_relaxed(priv->base + TSSR(tssr_index));
 		reg |= (TIEN | tint) << TSSEL_SHIFT(tssr_offset);
 		writel_relaxed(reg, priv->base + TSSR(tssr_index));
 		raw_spin_unlock(&priv->lock);
+	} else {
+		raw_spin_lock(&priv->lock);
+		rzg2l_irqc_unmask_once(priv, hw_irq);
+		raw_spin_unlock(&priv->lock);
 	}
+
 	irq_chip_enable_parent(d);
 }
 
@@ -294,8 +398,8 @@ static struct syscore_ops rzg2l_irqc_syscore_ops = {
 static const struct irq_chip irqc_chip = {
 	.name			= "rzg2l-irqc",
 	.irq_eoi		= rzg2l_irqc_eoi,
-	.irq_mask		= irq_chip_mask_parent,
-	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_mask		= rzg2l_irqc_mask,
+	.irq_unmask		= rzg2l_irqc_unmask,
 	.irq_disable		= rzg2l_irqc_irq_disable,
 	.irq_enable		= rzg2l_irqc_irq_enable,
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
@@ -371,7 +475,16 @@ static int rzg2l_irqc_parse_interrupts(struct rzg2l_irqc_priv *priv,
 	return 0;
 }
 
-static int rzg2l_irqc_init(struct device_node *node, struct device_node *parent)
+static const struct rzg2l_irqc_of_data rzg2l_irqc_mask_supported_data __initconst = {
+	.mask_supported = true,
+};
+
+static const struct rzg2l_irqc_of_data rzg2l_irqc_default_data __initconst = {
+	.mask_supported = false,
+};
+
+static int rzg2l_irqc_init(struct device_node *node, struct device_node *parent,
+			   const struct rzg2l_irqc_of_data *of_data)
 {
 	struct irq_domain *irq_domain, *parent_domain;
 	struct platform_device *pdev;
@@ -391,6 +504,8 @@ static int rzg2l_irqc_init(struct device_node *node, struct device_node *parent)
 	rzg2l_irqc_data = devm_kzalloc(&pdev->dev, sizeof(*rzg2l_irqc_data), GFP_KERNEL);
 	if (!rzg2l_irqc_data)
 		return -ENOMEM;
+
+	rzg2l_irqc_data->data = of_data;
 
 	rzg2l_irqc_data->base = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, NULL);
 	if (IS_ERR(rzg2l_irqc_data->base))
@@ -442,8 +557,21 @@ pm_disable:
 	return ret;
 }
 
+static int __init rzg2l_irqc_default_init(struct device_node *node,
+					  struct device_node *parent)
+{
+	return rzg2l_irqc_init(node, parent, &rzg2l_irqc_default_data);
+}
+
+static int __init rzg2l_irqc_mask_supported_init(struct device_node *node,
+						 struct device_node *parent)
+{
+	return rzg2l_irqc_init(node, parent, &rzg2l_irqc_mask_supported_data);
+}
+
 IRQCHIP_PLATFORM_DRIVER_BEGIN(rzg2l_irqc)
-IRQCHIP_MATCH("renesas,rzg2l-irqc", rzg2l_irqc_init)
+IRQCHIP_MATCH("renesas,rzg2l-irqc", rzg2l_irqc_default_init)
+IRQCHIP_MATCH("renesas,r9a07g043f-irqc", rzg2l_irqc_mask_supported_init)
 IRQCHIP_PLATFORM_DRIVER_END(rzg2l_irqc)
 MODULE_AUTHOR("Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>");
 MODULE_DESCRIPTION("Renesas RZ/G2L IRQC Driver");

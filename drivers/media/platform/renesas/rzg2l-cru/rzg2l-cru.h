@@ -17,8 +17,10 @@
 
 enum rzg2l_cru_common_regs {
 	CRUnCTRL,	/* CRU Control */
-	CRUnIE,		/* CRU Interrupt Enable */
-	CRUnINTS,	/* CRU Interrupt Status */
+	CRUnIE,		/* CRU Interrupt Enable(1) */
+	CRUnIE2,	/* CRU Interrupt Enable(2) */
+	CRUnINTS,	/* CRU Interrupt Status(1) */
+	CRUnINTS2,	/* CRU Interrupt Status(2) */
 	CRUnRST, 	/* CRU Reset */
 	AMnMB1ADDRL,	/* Bank 1 Address (Lower) for CRU Image Data */
 	AMnMB1ADDRH,	/* Bank 1 Address (Higher) for CRU Image Data */
@@ -38,16 +40,29 @@ enum rzg2l_cru_common_regs {
 	AMnMB8ADDRH,    /* Bank 8 Address (Higher) for CRU Image Data */
 	AMnMBVALID,	/* Memory Bank Enable for CRU Image Data */
 	AMnMBS,		/* Memory Bank Status for CRU Image Data */
+	AMnMADRSL,	/* VD Memory Address Lower Status Register */
+	AMnMADRSH,	/* VD Memory Address Higher Status Register */
 	AMnFIFOPNTR,	/* AXI Master FIFO Pointer for CRU Image Data */
 	AMnAXISTP,	/* AXI Master Transfer Stop for CRU Image Data */
 	AMnAXISTPACK,	/* AXI Master Transfer Stop Status for CRU Image Data */
+	AMnIS,		/* Image Stride Setting Register */
 	ICnEN,		/* CRU Image Processing Enable */
+	ICnSVCNUM,	/* CRU SVC Number Register */
+	ICnSVC,		/* CRU VC Select Register */
 	ICnMC,		/* CRU Image Processing Main Control */
+	ICnIPMC_C0,	/* CRU Image Converter Main Control 0 */
 	ICnMS,		/* CRU Module Status */
 	ICnDMR,		/* CRU Data Output Mode */
+	ICnTICTRL1,	/* CRU Test Image Generation Control 1 Register */
+	ICnTICTRL2,	/* CRU Test Image Generation Control 2 Register */
+	ICnTISIZE1,	/* CRU Test Image Size Setting 1 Register */
+	ICnTISIZE2,	/* CRU Test Image Size Setting 2 Register */
 
 	CRU_REGS_END,
 };
+
+#define RZG2L_CRU_TYPE		0
+#define RZV2H_CRU_TYPE		1
 
 #define RZG2L_CRU_MAX		4
 
@@ -93,6 +108,7 @@ struct rzg2l_cru_ip {
 
 struct rzg2l_cru_info {
 	const u16 *regs;
+	u8 cru_type;
 	unsigned int max_width;
 	unsigned int max_height;
 };
@@ -113,6 +129,7 @@ struct rzg2l_cru_info {
  * @vdev:		V4L2 video device associated with CRU
  * @v4l2_dev:		V4L2 device
  * @num_buf:		Holds the current number of buffers enabled
+ * @svc_channel:	SVC0/1/2/3 to use
  * @notifier:		V4L2 asynchronous subdevs notifier
  *
  * @ip:			Image processing subdev info
@@ -150,6 +167,8 @@ struct rzg2l_cru_dev {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	u8 num_buf;
+
+	u8 svc_channel;
 
 	struct v4l2_async_notifier notifier;
 

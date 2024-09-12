@@ -32,8 +32,14 @@ struct ddiv {
 	})
 
 #define CPG_CDDIV0		(0x400)
+#define CPG_CDDIV3		(0x40C)
+#define CPG_CDDIV4		(0x410)
 
 #define CDDIV0_DIVCTL2	DDIV_PACK(CPG_CDDIV0, 8, 3, 2)
+#define CDDIV3_DIVCTL3	DDIV_PACK(CPG_CDDIV3, 12, 1, 15)
+#define CDDIV4_DIVCTL0	DDIV_PACK(CPG_CDDIV4, 0, 1, 16)
+#define CDDIV4_DIVCTL1	DDIV_PACK(CPG_CDDIV4, 4, 1, 17)
+#define CDDIV4_DIVCTL2	DDIV_PACK(CPG_CDDIV4, 8, 1, 18)
 
 /**
  * Definitions of CPG Core Clocks

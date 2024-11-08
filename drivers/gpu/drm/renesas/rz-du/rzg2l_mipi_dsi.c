@@ -27,16 +27,34 @@
 
 #include "rzg2l_mipi_dsi_regs.h"
 
+#define MIPI_DPHY_OSC_CLK_IN_MEGA		(24 * MEGA)
+#define RZV2H_MIPI_DPHY_FVCO_MIN_IN_MEGA	(1050 * MEGA)
+#define RZV2H_MIPI_DPHY_FVCO_MAX_IN_MEGA	(2100 * MEGA)
+#define RZV2H_MIPI_DPHY_FOUT_MIN_IN_MEGA	(80 * MEGA)
+#define RZV2H_MIPI_DPHY_FOUT_MAX_IN_MEGA	(1500 * MEGA)
+#define RZV2H_MIPI_DPHY_PLL_M_MIN		(64)
+#define RZV2H_MIPI_DPHY_PLL_M_MAX		(1023)
+#define RZV2H_MIPI_DPHY_PLL_P_MIN		(1)
+#define RZV2H_MIPI_DPHY_PLL_P_MAX		(4)
+#define RZV2H_MIPI_DPHY_PLL_S_MIN		(0)
+#define RZV2H_MIPI_DPHY_PLL_S_MAX		(5)
+
+#define RZ_MIPI_DSI_16BPP	BIT(0)
+
+unsigned long long rzv2h_cpg_plldsi_get_rate_mhz(void);
+
 struct rzg2l_mipi_dsi;
 
 struct rzg2l_mipi_dsi_hw_info {
-	int (*dphy_init)(struct rzg2l_mipi_dsi *dsi, unsigned long hsfreq);
+	int (*dphy_init)(struct rzg2l_mipi_dsi *dsi, unsigned long long hsfreq_mhz);
+	void (*dphy_late_init)(struct rzg2l_mipi_dsi *dsi);
 	void (*dphy_exit)(struct rzg2l_mipi_dsi *dsi);
 	u32 phy_reg_offset;
 	u32 link_reg_offset;
 	unsigned long max_dclk;
 	unsigned long min_dclk;
 	bool has_dphy_rstc;
+	u8 features;
 };
 
 struct rzg2l_mipi_dsi {
@@ -54,11 +72,13 @@ struct rzg2l_mipi_dsi {
 	struct drm_bridge *next_bridge;
 
 	struct clk *vclk;
+	struct clk *lpclk;
 
 	enum mipi_dsi_pixel_format format;
 	unsigned int num_data_lanes;
 	unsigned int lanes;
 	unsigned long mode_flags;
+	unsigned long hsfreq;
 };
 
 static inline struct rzg2l_mipi_dsi *
@@ -175,6 +195,249 @@ static const struct rzg2l_mipi_dsi_timings rzg2l_mipi_dsi_global_timings[] = {
 	},
 };
 
+struct rzv2h_mipi_dsi_timings {
+	unsigned long hsfreq;
+	u16 value;
+};
+
+static const struct rzv2h_mipi_dsi_timings TCLKPRPRCTL[] = {
+	{150000000UL, 0},
+	{260000000UL, 1},
+	{370000000UL, 2},
+	{470000000UL, 3},
+	{580000000UL, 4},
+	{690000000UL, 5},
+	{790000000UL, 6},
+	{900000000UL, 7},
+	{1010000000UL, 8},
+	{1110000000UL, 9},
+	{1220000000UL, 10},
+	{1330000000UL, 11},
+	{1430000000UL, 12},
+	{1500000000UL, 13},
+};
+
+static const struct rzv2h_mipi_dsi_timings TCLKZEROCTL[] = {
+	{90000000UL, 2},
+	{110000000UL, 3},
+	{130000000UL, 4},
+	{150000000UL, 5},
+	{180000000UL, 6},
+	{210000000UL, 7},
+	{230000000UL, 8},
+	{240000000UL, 9},
+	{250000000UL, 10},
+	{270000000UL, 11},
+	{290000000UL, 12},
+	{310000000UL, 13},
+	{340000000UL, 14},
+	{360000000UL, 15},
+	{380000000UL, 16},
+	{410000000UL, 17},
+	{430000000UL, 18},
+	{450000000UL, 19},
+	{470000000UL, 20},
+	{500000000UL, 21},
+	{520000000UL, 22},
+	{540000000UL, 23},
+	{570000000UL, 24},
+	{590000000UL, 25},
+	{610000000UL, 26},
+	{630000000UL, 27},
+	{660000000UL, 28},
+	{680000000UL, 29},
+	{700000000UL, 30},
+	{730000000UL, 31},
+	{750000000UL, 32},
+	{770000000UL, 33},
+	{790000000UL, 34},
+	{820000000UL, 35},
+	{840000000UL, 36},
+	{860000000UL, 37},
+	{890000000UL, 38},
+	{910000000UL, 39},
+	{930000000UL, 40},
+	{950000000UL, 41},
+	{980000000UL, 42},
+	{1000000000UL, 43},
+	{1020000000UL, 44},
+	{1050000000UL, 45},
+	{1070000000UL, 46},
+	{1090000000UL, 47},
+	{1110000000UL, 48},
+	{1140000000UL, 49},
+	{1160000000UL, 50},
+	{1180000000UL, 51},
+	{1210000000UL, 52},
+	{1230000000UL, 53},
+	{1250000000UL, 54},
+	{1270000000UL, 55},
+	{1300000000UL, 56},
+	{1320000000UL, 57},
+	{1340000000UL, 58},
+	{1370000000UL, 59},
+	{1390000000UL, 60},
+	{1410000000UL, 61},
+	{1430000000UL, 62},
+	{1460000000UL, 63},
+	{1480000000UL, 64},
+	{1500000000UL, 65},
+};
+
+static const struct rzv2h_mipi_dsi_timings TCLKPOSTCTL[] = {
+	{80000000UL, 6},
+	{210000000UL, 7},
+	{340000000UL, 8},
+	{480000000UL, 9},
+	{610000000UL, 10},
+	{740000000UL, 11},
+	{880000000UL, 12},
+	{1010000000UL, 13},
+	{1140000000UL, 14},
+	{1280000000UL, 15},
+	{1410000000UL, 16},
+	{1500000000UL, 17},
+};
+
+static const struct rzv2h_mipi_dsi_timings TCLKTRAILCTL[] = {
+	{140000000UL, 1},
+	{250000000UL, 2},
+	{370000000UL, 3},
+	{480000000UL, 4},
+	{590000000UL, 5},
+	{710000000UL, 6},
+	{820000000UL, 7},
+	{940000000UL, 8},
+	{1050000000UL, 9},
+	{1170000000UL, 10},
+	{1280000000UL, 11},
+	{1390000000UL, 12},
+	{1500000000UL, 13},
+};
+
+static const struct rzv2h_mipi_dsi_timings THSPRPRCTL[] = {
+	{110000000UL, 0},
+	{190000000UL, 1},
+	{290000000UL, 2},
+	{400000000UL, 3},
+	{500000000UL, 4},
+	{610000000UL, 5},
+	{720000000UL, 6},
+	{820000000UL, 7},
+	{930000000UL, 8},
+	{1030000000UL, 9},
+	{1140000000UL, 10},
+	{1250000000UL, 11},
+	{1350000000UL, 12},
+	{1460000000UL, 13},
+	{1500000000UL, 14},
+};
+
+static const struct rzv2h_mipi_dsi_timings THSZEROCTL[] = {
+	{180000000UL, 0},
+	{240000000UL, 1},
+	{290000000UL, 2},
+	{350000000UL, 3},
+	{400000000UL, 4},
+	{460000000UL, 5},
+	{510000000UL, 6},
+	{570000000UL, 7},
+	{620000000UL, 8},
+	{680000000UL, 9},
+	{730000000UL, 10},
+	{790000000UL, 11},
+	{840000000UL, 12},
+	{900000000UL, 13},
+	{950000000UL, 14},
+	{1010000000UL, 15},
+	{1060000000UL, 16},
+	{1120000000UL, 17},
+	{1170000000UL, 18},
+	{1230000000UL, 19},
+	{1280000000UL, 20},
+	{1340000000UL, 21},
+	{1390000000UL, 22},
+	{1450000000UL, 23},
+	{1500000000UL, 24},
+};
+
+static const struct rzv2h_mipi_dsi_timings THSTRAILCTL[] = {
+	{100000000UL, 3},
+	{210000000UL, 4},
+	{320000000UL, 5},
+	{420000000UL, 6},
+	{530000000UL, 7},
+	{640000000UL, 8},
+	{750000000UL, 9},
+	{850000000UL, 10},
+	{960000000UL, 11},
+	{1070000000UL, 12},
+	{1180000000UL, 13},
+	{1280000000UL, 14},
+	{1390000000UL, 15},
+	{1500000000UL, 16},
+};
+
+static const struct rzv2h_mipi_dsi_timings TLPXCTL[] = {
+	{130000000UL, 0},
+	{260000000UL, 1},
+	{390000000UL, 2},
+	{530000000UL, 3},
+	{660000000UL, 4},
+	{790000000UL, 5},
+	{930000000UL, 6},
+	{1060000000UL, 7},
+	{1190000000UL, 8},
+	{1330000000UL, 9},
+	{1460000000UL, 10},
+	{1500000000UL, 11},
+};
+
+static const struct rzv2h_mipi_dsi_timings THSEXITCTL[] = {
+	{150000000UL, 1},
+	{230000000UL, 2},
+	{310000000UL, 3},
+	{390000000UL, 4},
+	{470000000UL, 5},
+	{550000000UL, 6},
+	{630000000UL, 7},
+	{710000000UL, 8},
+	{790000000UL, 9},
+	{870000000UL, 10},
+	{950000000UL, 11},
+	{1030000000UL, 12},
+	{1110000000UL, 13},
+	{1190000000UL, 14},
+	{1270000000UL, 15},
+	{1350000000UL, 16},
+	{1430000000UL, 17},
+	{1500000000UL, 18},
+};
+
+static const struct rzv2h_mipi_dsi_timings ULPSEXIT[] = {
+	{1953125UL, 49},
+	{3906250UL, 98},
+	{7812500UL, 195},
+	{15625000UL, 391},
+};
+
+static int rzv2h_dphy_find_timings_val(unsigned long freq,
+				       const struct rzv2h_mipi_dsi_timings timings[],
+				       unsigned int size)
+{
+	unsigned int i;
+
+	for (i = 0; i < size; i++) {
+		if (freq <= timings[i].hsfreq)
+			break;
+	}
+
+	if (i == size)
+		i -= 1;
+
+	return timings[i].value;
+};
+
 static void rzg2l_mipi_dsi_phy_write(struct rzg2l_mipi_dsi *dsi, u32 reg, u32 data)
 {
 	iowrite32(data, dsi->mmio + dsi->info->phy_reg_offset + reg);
@@ -200,9 +463,10 @@ static u32 rzg2l_mipi_dsi_link_read(struct rzg2l_mipi_dsi *dsi, u32 reg)
  */
 
 static int rzg2l_mipi_dsi_dphy_init(struct rzg2l_mipi_dsi *dsi,
-				    unsigned long hsfreq)
+				    unsigned long long hsfreq_mhz)
 {
 	const struct rzg2l_mipi_dsi_timings *dphy_timings;
+	unsigned long hsfreq = hsfreq_mhz / KILO;
 	unsigned int i;
 	u32 dphyctrl0;
 	u32 dphytim0;
@@ -270,11 +534,333 @@ static void rzg2l_mipi_dsi_dphy_exit(struct rzg2l_mipi_dsi *dsi)
 	reset_control_assert(dsi->rstc);
 }
 
+struct plls {
+	int p;
+	int s;
+	int m;
+	long int k;
+	s16 err;
+	unsigned long fout;
+};
+
+static unsigned long long compute_ffout(int p, int s, int m, long k)
+{
+	unsigned long long fout;
+	unsigned long long two_pow16 = (1 << 16);
+
+	fout = (((m * two_pow16 * 24000000ULL) + (k * 24000000ULL)) * KILO) / (two_pow16 * p * (1 << s));
+
+	return fout;
+}
+#if 0
+static long long int compute_fvco(int p, int s, int m, long int k)
+{
+	long long int a_i, a_r, b_i, b_r;
+	long long int fvco;
+
+	a_i = ((m * 65536) + k) / 65536;
+	a_r = ((m * 65536) + k) % 65536;
+	//a_d = a_r / 65536
+
+	b_i = 24000000 / p;
+	b_r = 24000000 % p;
+	//b_d = b_r / p
+
+	//fvco = (m + (k / 65536))*(24000000 / p);
+	// a * b = (a_i + a_d) * (b_i + b_d) = a_i * b_i + a_i * b_d + a_d * b_i
+	// + a_d * b_d
+	//
+	// a_d = a_r / 65536
+	// b_d = b_r / p
+	fvco = a_i * b_i + ((a_i * b_r)/p + (a_r * b_i)/65536 + (a_r * b_r)/(65536*p));
+
+	return fvco;
+}
+#endif
+
+static int plls_valid(struct plls curr)
+{
+	if (curr.p == -1)
+		return 0;
+
+	return 1;
+}
+
+static struct plls get_best(struct plls curr_best,
+			    struct plls curr,
+			    long long int fout)
+{
+	long long int curr_best_fout_err, curr_fout_err;
+	long long curr_best_fout, curr_fout;
+	long long int curr_fvco, curr_best_fvco;
+
+	if (curr.p < 1 || curr.p > 4)
+		return curr_best;
+
+	if (curr.s < 0 || curr.s > 5)
+		return curr_best;
+
+	if (curr.m < 64 || curr.m > 1023)
+		return curr_best;
+
+	if (curr.k < -32768 || curr.k > 32767)
+		return curr_best;
+
+	if (!plls_valid(curr_best))
+		return curr;
+
+	curr_fout = compute_ffout(curr.p, curr.s, curr.m, curr.k);
+	curr_best_fout = compute_ffout(curr_best.p, curr_best.s, curr_best.m, curr_best.k);
+
+	curr_fout_err = abs(curr_fout - fout);
+	curr_best_fout_err = abs(curr_best_fout - fout);
+
+	if (curr_fout_err < curr_best_fout_err)
+		return curr;
+
+	if (curr_fout_err > curr_best_fout_err)
+		return curr_best;
+
+#if 0
+	curr_fvco = compute_fvco(curr.p, curr.s, curr.m, curr.k);
+	curr_best_fvco = compute_fvco(curr_best.p, curr_best.s, curr_best.m, curr_best.k);
+	if (abs(curr_fvco - RZV2H_MIPI_DPHY_FVCO_AVG_IN_MEGA) < abs(curr_best_fvco - RZV2H_MIPI_DPHY_FVCO_AVG_IN_MEGA))
+		return curr;
+#endif
+	return curr_best;
+}
+
+static long int compute_best_k(int p, int s, int m, long int k,
+			       long long fout,
+			       long long cur_fout)
+{
+	long long _fout, _best_fout = cur_fout;
+	long int _k, _best_k = k;
+
+	for (_k = k + 1; _k <= 32767; _k++) {
+		_fout = compute_ffout(p, s, m, _k);
+		/* FIXME do we need to freq >= fout?
+                if (_best_fout < fout && _fout >= fout) {
+                        _best_fout = _fout;
+                        _best_k = _k;
+                }*/
+		if (abs(fout - _fout) > abs(fout - _best_fout)) {
+			break;
+		}
+		_best_fout = _fout;
+		_best_k = _k;
+	}
+#if 1
+	for (_k = k - 1; _k >= -32768; _k--) {
+		_fout = compute_ffout(p, s, m, _k);
+		if (abs(fout - _fout) > abs(fout - _best_fout)) {
+			break;
+		}
+		_best_fout = _fout;
+		_best_k = _k;
+	}
+#endif
+
+	return _best_k;
+}
+
+static bool rzv2h_calculate_pll_dividers(unsigned long long fout, int *best_p,
+					 int *best_s, int *best_m, long *best_k,
+					 long int *err)
+{
+	long long int twopow16 = (1 << 16);
+	long long int fvco, osc, fref;
+	struct plls best = {.p = -1};
+	int s, m0, m1, p;
+	long int k0, k1;
+
+	/* Setting all PLL Registers */
+	osc = MIPI_DPHY_OSC_CLK_IN_MEGA;
+	for (p = RZV2H_MIPI_DPHY_PLL_P_MAX;
+	     p >= RZV2H_MIPI_DPHY_PLL_P_MIN; p--) {
+		for (s = RZV2H_MIPI_DPHY_PLL_S_MAX;
+		     s >= RZV2H_MIPI_DPHY_PLL_S_MIN; s--) {
+			/* Check FVCO condition */
+			fvco = (fout * (1 << s)) / KILO;
+#if 1
+			if (fvco > RZV2H_MIPI_DPHY_FVCO_MAX_IN_MEGA ||
+			    fvco < RZV2H_MIPI_DPHY_FVCO_MIN_IN_MEGA)
+				continue;
+#endif
+			m0 = (fvco * p) / osc;
+			m1 = m0 + 1;
+
+			fref = 24000000 / p;
+
+			if (!(m0 < RZV2H_MIPI_DPHY_PLL_M_MIN || m0 > RZV2H_MIPI_DPHY_PLL_M_MAX)) {
+				k0 = ((fvco * twopow16) - (m0 * twopow16 * fref)) / fref;
+				if (!(k0 < -32768 || k0 > 32767)) {
+					struct plls pll0 = {.p = -1};
+
+					k0 = compute_best_k(p, s, m0, k0, fout, compute_ffout(p, s, m0, k0));
+
+					pll0.p = p;
+					pll0.s = s;
+					pll0.m = m0;
+					pll0.k = k0;
+
+					best = get_best(best, pll0, fout);
+				}
+			}
+
+			if (!(m1 < RZV2H_MIPI_DPHY_PLL_M_MIN || m1 > RZV2H_MIPI_DPHY_PLL_M_MAX)) {
+				k1 = ((fvco * twopow16) - (m1 * twopow16 * fref)) / fref;
+				if (!(k1 < -32768 || k1 > 32767)) {
+					struct plls pll1 = {.p = -1};
+
+					k1 = compute_best_k(p, s, m1, k1, fout, compute_ffout(p, s, m1, k1));
+
+					pll1.p = p;
+					pll1.s = s;
+					pll1.m = m1;
+					pll1.k = k1;
+
+					best = get_best(best, pll1, fout);
+				}
+			}
+		}
+	}
+
+	if (plls_valid(best)) {
+		*best_p = best.p;
+		*best_s = best.s;
+		*best_m = best.m;
+		*best_k = best.k;
+
+		if (err)
+			*err = fout - compute_ffout(best.p, best.s, best.m, best.k);
+		return true;
+	}
+
+	return false;
+}
+
+static int rzv2h_mipi_dsi_dphy_init(struct rzg2l_mipi_dsi *dsi,
+				    unsigned long long hsfreq_mhz)
+{
+	unsigned long lpclk_rate = clk_get_rate(dsi->lpclk);
+	u32 phytclksetr, phythssetr, phytlpxsetr, phycr;
+	struct rzg2l_mipi_dsi_timings dphy_timings;
+	int pll_s, pll_m, pll_p = -1;
+	unsigned long hsfreq = (hsfreq_mhz / KILO);
+	unsigned long long fout;
+	unsigned int i;
+	u32 ulpsexit;
+	long pll_k;
+	long int err;
+
+	/* Check FOUT condition */
+	if (hsfreq > RZV2H_MIPI_DPHY_FOUT_MAX_IN_MEGA ||
+	    hsfreq < RZV2H_MIPI_DPHY_FOUT_MIN_IN_MEGA)
+		return -EINVAL;
+
+	dsi->hsfreq = hsfreq;
+
+	if (rzv2h_calculate_pll_dividers(hsfreq_mhz, &pll_p, &pll_s, &pll_m, &pll_k, &err))
+		goto dividers_found;
+
+	dev_err(dsi->dev, "Not found pll setting for %lu\n", hsfreq);
+	return -EINVAL;
+
+dividers_found:
+	fout = compute_ffout(pll_p, pll_s, pll_m, pll_k);
+	dev_err(dsi->dev, "hsfreq_mhz:%llu fout:%llu pll_k: %ld, pll_m: %d, pll_p: %d, pll_s: %d err:%ld\n",
+		hsfreq_mhz, fout, pll_k, pll_m, pll_p, pll_s, err);
+
+	dphy_timings.tclk_trail =
+		rzv2h_dphy_find_timings_val(hsfreq, TCLKTRAILCTL,
+					    ARRAY_SIZE(TCLKTRAILCTL));
+	dphy_timings.tclk_post =
+		rzv2h_dphy_find_timings_val(hsfreq, TCLKPOSTCTL,
+					    ARRAY_SIZE(TCLKPOSTCTL));
+	dphy_timings.tclk_zero =
+		rzv2h_dphy_find_timings_val(hsfreq, TCLKZEROCTL,
+					    ARRAY_SIZE(TCLKZEROCTL));
+	dphy_timings.tclk_prepare =
+		rzv2h_dphy_find_timings_val(hsfreq, TCLKPRPRCTL,
+					    ARRAY_SIZE(TCLKPRPRCTL));
+	dphy_timings.ths_exit =
+		rzv2h_dphy_find_timings_val(hsfreq, THSEXITCTL,
+					    ARRAY_SIZE(THSEXITCTL));
+	dphy_timings.ths_trail =
+		rzv2h_dphy_find_timings_val(hsfreq, THSTRAILCTL,
+					    ARRAY_SIZE(THSTRAILCTL));
+	dphy_timings.ths_zero =
+		rzv2h_dphy_find_timings_val(hsfreq, THSZEROCTL,
+					    ARRAY_SIZE(THSZEROCTL));
+	dphy_timings.ths_prepare =
+		rzv2h_dphy_find_timings_val(hsfreq, THSPRPRCTL,
+					    ARRAY_SIZE(THSPRPRCTL));
+	dphy_timings.tlpx =
+		rzv2h_dphy_find_timings_val(hsfreq, TLPXCTL,
+					    ARRAY_SIZE(TLPXCTL));
+	ulpsexit =
+		rzv2h_dphy_find_timings_val(lpclk_rate, ULPSEXIT,
+					    ARRAY_SIZE(ULPSEXIT));
+
+	phytclksetr = PHYTCLKSETR_TCLKTRAILCTL(dphy_timings.tclk_trail) |
+		      PHYTCLKSETR_TCLKPOSTCTL(dphy_timings.tclk_post) |
+		      PHYTCLKSETR_TCLKZEROCTL(dphy_timings.tclk_zero) |
+		      PHYTCLKSETR_TCLKPRPRCTL(dphy_timings.tclk_prepare);
+	phythssetr = PHYTHSSETR_THSEXITCTL(dphy_timings.ths_exit) |
+		     PHYTHSSETR_THSTRAILCTL(dphy_timings.ths_trail) |
+		     PHYTHSSETR_THSZEROCTL(dphy_timings.ths_zero) |
+		     PHYTHSSETR_THSPRPRCTL(dphy_timings.ths_prepare);
+	phytlpxsetr = rzg2l_mipi_dsi_phy_read(dsi, PHYTLPXSETR) & ~GENMASK(7, 0);
+	phytlpxsetr |= PHYTLPXSETR_TLPXCTL(dphy_timings.tlpx);
+	phycr = rzg2l_mipi_dsi_phy_read(dsi, PHYCR) & ~GENMASK(9, 0);
+	phycr |= PHYCR_ULPSEXIT(ulpsexit);
+
+	dev_err(dsi->dev, "tclk_prepare:%u tclk_zero:%u tclk_post: %u, tclk_trail:%u,"
+		" ths_prepare:%u, ths_zero:%u ths_trail:%u tlpx:%u ths_exit:%u ulpsexit:%u lpclk_rate:%lu\n",
+		dphy_timings.tclk_prepare, dphy_timings.tclk_zero, dphy_timings.tclk_post, dphy_timings.tclk_trail, dphy_timings.ths_prepare,
+		dphy_timings.ths_zero, dphy_timings.ths_trail, dphy_timings.tlpx, dphy_timings.ths_exit, ulpsexit, lpclk_rate);
+
+	/* Setting all D-PHY Timings Registers */
+	rzg2l_mipi_dsi_phy_write(dsi, PHYTCLKSETR, phytclksetr);
+	rzg2l_mipi_dsi_phy_write(dsi, PHYTHSSETR, phythssetr);
+	rzg2l_mipi_dsi_phy_write(dsi, PHYTLPXSETR, phytlpxsetr);
+	rzg2l_mipi_dsi_phy_write(dsi, PHYCR, phycr);
+
+	rzg2l_mipi_dsi_phy_write(dsi, PLLCLKSET0R,
+				 PLLCLKSET0R_PLL_S(pll_s) |
+				 PLLCLKSET0R_PLL_P(pll_p) |
+				 PLLCLKSET0R_PLL_M(pll_m));
+	rzg2l_mipi_dsi_phy_write(dsi, PLLCLKSET1R, PLLCLKSET1R_PLL_K(pll_k));
+	udelay(20);
+
+	rzg2l_mipi_dsi_phy_write(dsi, PLLENR, PLLENR_PLLEN);
+	udelay(500);
+
+	return 0;
+}
+
+static void rzv2h_mipi_dsi_dphy_late_init(struct rzg2l_mipi_dsi *dsi)
+{
+	udelay(220);
+	rzg2l_mipi_dsi_phy_write(dsi, PHYRSTR, PHYRSTR_PHYMRSTN);
+}
+
+static void rzv2h_mipi_dsi_dphy_exit(struct rzg2l_mipi_dsi *dsi)
+{
+	rzg2l_mipi_dsi_phy_write(dsi, PLLENR, 0);
+}
+
 static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 				  const struct drm_display_mode *mode)
 {
-	unsigned long hsfreq, vclk_rate;
-	unsigned int bpp;
+	unsigned long vclk_rate, _vclk_rate;
+	unsigned long long hsfreq, hsfreq_mhz;
+	unsigned long long vclk_rate_mhz;
+	unsigned int bpp, i;
+	int pll_p, pll_s, pll_m;
+	long int pll_k;
+	int solution_num = 0;
 	u32 txsetr;
 	u32 clstptsetr;
 	u32 lptrnstsetr;
@@ -283,6 +869,7 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 	u32 clkstpt;
 	u32 golpbkt;
 	int ret;
+	long int err;
 
 	ret = pm_runtime_resume_and_get(dsi->dev);
 	if (ret < 0)
@@ -296,21 +883,51 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 	 * where vclk: video clock (Hz)
 	 *       bpp: video pixel bit depth
 	 *       hsclk: DSI HS Byte clock frequency (Hz)
-	 *       lanes: number of data lanes
+	 *       lanes: number of data lanes1
 	 *
 	 * hsclk(bit) = hsclk(byte) * 8
 	 */
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	vclk_rate = clk_get_rate(dsi->vclk);
-	hsfreq = DIV_ROUND_CLOSEST_ULL(vclk_rate * bpp * 8, 8 * dsi->lanes);
+	_vclk_rate = vclk_rate = clk_get_rate(dsi->vclk);
+	vclk_rate_mhz = 0;
+	for (i = 0; i < 1000; i++) {
+                clk_set_rate(dsi->vclk, vclk_rate + i);
+		_vclk_rate = clk_get_rate(dsi->vclk);
+		vclk_rate_mhz = rzv2h_cpg_plldsi_get_rate_mhz();
+		hsfreq_mhz = (vclk_rate_mhz * bpp) / dsi->lanes;
+		rzv2h_calculate_pll_dividers(hsfreq_mhz, &pll_p, &pll_s, &pll_m, &pll_k, &err);
+               	pr_err("inc: %s mode_clk:%lu vclk_rate:%lu _vclk_rate:%lu bpp:%u dsi_lanes:%u hsfreq_mhz:%llu vclk_rate_mhz:%llu err:%ld\n",
+                       __func__, mode->clock * KILO, vclk_rate +i, _vclk_rate, bpp, dsi->lanes, hsfreq_mhz, vclk_rate_mhz, err);
+		if (abs(err) < 500)
+			goto solution_found;
+	}
 
-	ret = dsi->info->dphy_init(dsi, hsfreq);
+	for (i = 0; i < 1000; i++) {
+		clk_set_rate(dsi->vclk, vclk_rate - i);
+		_vclk_rate = clk_get_rate(dsi->vclk);
+		vclk_rate_mhz = rzv2h_cpg_plldsi_get_rate_mhz();
+                hsfreq_mhz = (vclk_rate_mhz * bpp) / dsi->lanes;
+                rzv2h_calculate_pll_dividers(hsfreq_mhz, &pll_p, &pll_s, &pll_m, &pll_k, &err);
+                pr_err("dec: %s mode_clk:%lu vclk_rate:%lu _vclk_rate:%lu bpp:%u dsi_lanes:%u hsfreq_mhz:%llu vclk_rate_mhz:%llu err:%ld\n",
+                       __func__, mode->clock * KILO, vclk_rate-i, _vclk_rate, bpp, dsi->lanes, hsfreq_mhz, vclk_rate_mhz, err);
+		if (abs(err) < 500)
+                      goto solution_found;
+        }
+
+	return -EINVAL;
+
+solution_found:
+	hsfreq = hsfreq_mhz / KILO;
+	ret = dsi->info->dphy_init(dsi, hsfreq_mhz);
 	if (ret < 0)
 		goto err_phy;
 
 	/* Enable Data lanes and Clock lanes */
 	txsetr = TXSETR_DLEN | TXSETR_NUMLANEUSE(dsi->lanes - 1) | TXSETR_CLEN;
 	rzg2l_mipi_dsi_link_write(dsi, TXSETR, txsetr);
+
+	if (dsi->info->dphy_late_init)
+		dsi->info->dphy_late_init(dsi);
 
 	/*
 	 * Global timings characteristic depends on high speed Clock Frequency
@@ -379,6 +996,9 @@ static void rzg2l_mipi_dsi_set_display_timing(struct rzg2l_mipi_dsi *dsi,
 		break;
 	case 18:
 		vich1ppsetr = VICH1PPSETR_DT_RGB18;
+		break;
+	case 16:
+		vich1ppsetr = VICH1PPSETR_DT_RGB16;
 		break;
 	}
 
@@ -637,8 +1257,14 @@ static int rzg2l_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	}
 
 	switch (mipi_dsi_pixel_format_to_bpp(device->format)) {
-	case 24:
+	case 16:
+		if (!(dsi->info->features & RZ_MIPI_DSI_16BPP)) {
+			dev_err(dsi->dev, "Unsupported format 0x%04x\n",
+				device->format);
+			return -EINVAL;
+		}
 	case 18:
+	case 24:
 		break;
 	default:
 		dev_err(dsi->dev, "Unsupported format 0x%04x\n", device->format);
@@ -749,6 +1375,10 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(dsi->vclk))
 		return PTR_ERR(dsi->vclk);
 
+	dsi->lpclk = devm_clk_get(dsi->dev, "lpclk");
+	if (IS_ERR(dsi->lpclk))
+		return PTR_ERR(dsi->lpclk);
+
 	if (dsi->info->has_dphy_rstc) {
 		dsi->rstc = devm_reset_control_get_exclusive(dsi->dev, "rst");
 		if (IS_ERR(dsi->rstc))
@@ -779,7 +1409,7 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	 * mode->clock and format are not available. So initialize DPHY with
 	 * timing parameters for 80Mbps.
 	 */
-	ret = dsi->info->dphy_init(dsi, 80000000);
+	ret = dsi->info->dphy_init(dsi, 80000000 * KILO);
 	if (ret < 0)
 		goto err_phy;
 
@@ -817,6 +1447,17 @@ static void rzg2l_mipi_dsi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
+static const struct rzg2l_mipi_dsi_hw_info rzv2h_mipi_dsi_info = {
+	.dphy_init = rzv2h_mipi_dsi_dphy_init,
+	.dphy_late_init = rzv2h_mipi_dsi_dphy_late_init,
+	.dphy_exit = rzv2h_mipi_dsi_dphy_exit,
+	.phy_reg_offset = 0x10000,
+	.link_reg_offset = 0,
+	.max_dclk = 187500,
+	.min_dclk = 5440,
+	.features = RZ_MIPI_DSI_16BPP,
+};
+
 static const struct rzg2l_mipi_dsi_hw_info rzg2l_mipi_dsi_info = {
 	.dphy_init = rzg2l_mipi_dsi_dphy_init,
 	.dphy_exit = rzg2l_mipi_dsi_dphy_exit,
@@ -827,6 +1468,7 @@ static const struct rzg2l_mipi_dsi_hw_info rzg2l_mipi_dsi_info = {
 };
 
 static const struct of_device_id rzg2l_mipi_dsi_of_table[] = {
+	{ .compatible = "renesas,r9a09g057-mipi-dsi", .data = &rzv2h_mipi_dsi_info, },
 	{ .compatible = "renesas,rzg2l-mipi-dsi", .data = &rzg2l_mipi_dsi_info, },
 	{ /* sentinel */ }
 };

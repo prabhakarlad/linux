@@ -165,6 +165,7 @@
 #define NOD_MASK		0x01
 #define SMT_MASK		0x01
 
+#define PM_HI_Z			0x0
 #define PM_INPUT		0x1
 #define PM_OUTPUT		0x2
 
@@ -173,6 +174,9 @@
 
 #define RZG2L_TINT_MAX_INTERRUPT	32
 #define RZG2L_PACK_HWIRQ(t, i)		(((t) << 16) | (i))
+
+#define GPIO12_P42_4	340
+#define GPIO13_P47_2	378
 
 /* Custom pinconf parameters */
 #define RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE	(PIN_CONFIG_END + 1)
@@ -1694,6 +1698,11 @@ static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
+	if (offset == GPIO12_P42_4 || offset == GPIO13_P47_2) {
+		rzg2l_rmw_pin_config(pctrl, PUPD(off), bit, PUPD_MASK, 1);
+		rzg2l_rmw_pin_config(pctrl, IOLH(off), bit, IOLH_MASK, 0x3);
+	}
+
 	return 0;
 }
 
@@ -1712,7 +1721,10 @@ static void rzg2l_gpio_set_direction(struct rzg2l_pinctrl *pctrl, u32 offset,
 	reg16 = readw(pctrl->base + PM(off));
 	reg16 &= ~(PM_MASK << (bit * 2));
 
-	reg16 |= (output ? PM_OUTPUT : PM_INPUT) << (bit * 2);
+	if (offset == GPIO12_P42_4 || offset == GPIO13_P47_2)
+		reg16 |= (output ? PM_OUTPUT : PM_HI_Z) << (bit * 2);
+	else
+		reg16 |= (output ? PM_OUTPUT : PM_INPUT) << (bit * 2);
 	writew(reg16, pctrl->base + PM(off));
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
@@ -1759,6 +1771,11 @@ static int rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	unsigned long flags;
 	u8 reg8;
 
+	if (offset == GPIO12_P42_4 || offset == GPIO13_P47_2) {
+		rzg2l_gpio_set_direction(pctrl, offset, value ? 0 : 1);
+		return;
+	}
+
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	reg8 = readb(pctrl->base + P(off));
@@ -1795,6 +1812,12 @@ static int rzg2l_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 	reg16 = readw(pctrl->base + PM(off));
 	reg16 = (reg16 >> (bit * 2)) & PM_MASK;
+
+	if (offset == GPIO12_P42_4 || offset == GPIO13_P47_2) {
+		if (reg16 == PM_HI_Z)
+			return 1;
+		return 0;
+	}
 
 	if (reg16 == PM_INPUT)
 		return !!(readb(pctrl->base + PIN(off)) & BIT(bit));

@@ -19,7 +19,7 @@
 #include <linux/types.h>
 
 #include <asm-generic/bug.h>
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mei_dev.h"
 #include "vsc-tp.h"
@@ -255,8 +255,6 @@ static int mei_vsc_hw_reset(struct mei_device *mei_dev, bool intr_enable)
 	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
 
 	vsc_tp_reset(hw->tp);
-
-	vsc_tp_intr_disable(hw->tp);
 
 	return vsc_tp_init(hw->tp, mei_dev->dev);
 }

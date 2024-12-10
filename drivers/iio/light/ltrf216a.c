@@ -26,7 +26,7 @@
 
 #include <linux/iio/iio.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define LTRF216A_ALS_RESET_MASK		BIT(4)
 #define LTRF216A_ALS_DATA_STATUS	BIT(3)
@@ -561,6 +561,7 @@ MODULE_DEVICE_TABLE(i2c, ltrf216a_id);
 static const struct of_device_id ltrf216a_of_match[] = {
 	{ .compatible = "liteon,ltr308", .data = &ltr308_chip_info },
 	{ .compatible = "liteon,ltrf216a", .data = &ltrf216a_chip_info },
+	/* For Valve's Steamdeck device, an ACPI platform using PRP0001 */
 	{ .compatible = "ltr,ltrf216a", .data = &ltrf216a_chip_info },
 	{}
 };

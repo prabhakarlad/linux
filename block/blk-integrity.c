@@ -56,8 +56,7 @@ new_segment:
 
 /**
  * blk_rq_map_integrity_sg - Map integrity metadata into a scatterlist
- * @q:		request queue
- * @bio:	bio with integrity metadata attached
+ * @rq:		request to map
  * @sglist:	target scatterlist
  *
  * Description: Map the integrity vectors in request into a
@@ -114,9 +113,9 @@ new_segment:
 EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
 int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
-			      ssize_t bytes, u32 seed)
+			      ssize_t bytes)
 {
-	int ret = bio_integrity_map_user(rq->bio, ubuf, bytes, seed);
+	int ret = bio_integrity_map_user(rq->bio, ubuf, bytes);
 
 	if (ret)
 		return ret;

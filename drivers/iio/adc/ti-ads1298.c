@@ -23,7 +23,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Commands */
 #define ADS1298_CMD_WAKEUP	0x02
@@ -294,7 +294,7 @@ static int ads1298_get_scale(struct ads1298_private *priv,
 		if (ret)
 			return ret;
 
-		/* Refererence in millivolts */
+		/* Reference in millivolts */
 		*val = regval & ADS1298_MASK_CONFIG3_VREF_4V ? 4000 : 2400;
 	}
 

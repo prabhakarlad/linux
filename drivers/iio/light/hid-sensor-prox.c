@@ -94,6 +94,7 @@ static int prox_read_raw(struct iio_dev *indio_dev,
 	*val2 = 0;
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+	case IIO_CHAN_INFO_PROCESSED:
 		if (chan->scan_index >= prox_state->num_channels)
 			return -EINVAL;
 		address = prox_state->channel2usage[chan->scan_index];
@@ -372,4 +373,4 @@ module_platform_driver(hid_prox_platform_driver);
 MODULE_DESCRIPTION("HID Sensor Proximity");
 MODULE_AUTHOR("Archana Patni <archana.patni@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HID);
+MODULE_IMPORT_NS("IIO_HID");

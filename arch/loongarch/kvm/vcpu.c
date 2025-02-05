@@ -240,7 +240,7 @@ static void kvm_late_check_requests(struct kvm_vcpu *vcpu)
  */
 static int kvm_enter_guest_check(struct kvm_vcpu *vcpu)
 {
-	int ret;
+	int idx, ret;
 
 	/*
 	 * Check conditions before entering the guest
@@ -249,7 +249,9 @@ static int kvm_enter_guest_check(struct kvm_vcpu *vcpu)
 	if (ret < 0)
 		return ret;
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	ret = kvm_check_requests(vcpu);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 	return ret;
 }
@@ -1730,9 +1732,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		vcpu->mmio_needed = 0;
 	}
 
-	if (run->exit_reason == KVM_EXIT_LOONGARCH_IOCSR) {
+	switch (run->exit_reason) {
+	case KVM_EXIT_HYPERCALL:
+		kvm_complete_user_service(vcpu, run);
+		break;
+	case KVM_EXIT_LOONGARCH_IOCSR:
 		if (!run->iocsr_io.is_write)
 			kvm_complete_iocsr_read(vcpu, run);
+		break;
 	}
 
 	if (!vcpu->wants_to_run)

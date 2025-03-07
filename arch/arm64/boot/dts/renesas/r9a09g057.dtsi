@@ -1266,6 +1266,265 @@
 			};
 		};
 
+		cru0: cru0@16000000 {
+			compatible = "renesas,r9a09g047-cru";
+			reg = <0 0x16000000 0 0x400>;
+			clocks = <&cpg CPG_MOD 0xd3>,
+				 <&cpg CPG_MOD 0xd4>,
+				 <&cpg CPG_MOD 0xd2>;
+			clock-names = "video", "apb", "axi";
+			interrupts = <GIC_SPI 838 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 839 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 841 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 842 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "image_conv", "axi_mst_err",
+					  "vd_addr_wend", "sd_addr_wend",
+					  "vsd_addr_wend";
+			resets = <&cpg 0xc5>,
+				 <&cpg 0xc6>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			renesas,id = <0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru0_to_csi0: endpoint {
+						remote-endpoint = <&csi0_to_cru0>;
+					};
+				};
+			};
+		};
+
+		cru1: cru1@16010000 {
+			compatible = "renesas,r9a09g047-cru";
+			reg = <0 0x16010000 0 0x400>;
+			clocks = <&cpg CPG_MOD 0xd6>,
+				 <&cpg CPG_MOD 0xd7>,
+				 <&cpg CPG_MOD 0xd5>;
+			clock-names = "video", "apb", "axi";
+			interrupts = <GIC_SPI 844 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 845 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 846 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 847 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 848 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "image_conv", "axi_mst_err",
+					  "vd_addr_wend", "sd_addr_wend",
+					  "vsd_addr_wend";
+			resets = <&cpg 0xc8>,
+				 <&cpg 0xc9>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			renesas,id = <1>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru1_to_csi1: endpoint {
+						remote-endpoint = <&csi1_to_cru1>;
+					};
+				};
+			};
+		};
+
+		cru2: cru2@16020000 {
+			compatible = "renesas,r9a09g047-cru";
+			reg = <0 0x16020000 0 0x400>;
+			clocks = <&cpg CPG_MOD 0xd9>,
+				 <&cpg CPG_MOD 0xda>,
+				 <&cpg CPG_MOD 0xd8>;
+			clock-names = "video", "apb", "axi";
+			interrupts = <GIC_SPI 850 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 851 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 852 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 853 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "image_conv", "axi_mst_err",
+					  "vd_addr_wend", "vsd_addr_wend";
+			resets = <&cpg 0xcb>,
+				 <&cpg 0xcc>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			renesas,id = <2>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru2_to_csi2: endpoint {
+						remote-endpoint = <&csi2_to_cru2>;
+					};
+				};
+			};
+		};
+
+		cru3: cru3@16030000 {
+			compatible = "renesas,r9a09g047-cru";
+			reg = <0 0x16030000 0 0x400>;
+			clocks = <&cpg CPG_MOD 0xdc>,
+				 <&cpg CPG_MOD 0xdd>,
+				 <&cpg CPG_MOD 0xdb>;
+			clock-names = "video", "apb", "axi";
+			interrupts = <GIC_SPI 855 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 856 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 857 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 858 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "image_conv", "axi_mst_err",
+					  "vd_addr_wend", "vsd_addr_wend";
+			resets = <&cpg 0xce>,
+				 <&cpg 0xcf>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			renesas,id = <3>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@1 {
+					reg = <1>;
+
+					cru3_to_csi3: endpoint {
+						remote-endpoint = <&csi3_to_cru3>;
+					};
+				};
+			};
+		};
+
+		csi0: csi2@16000400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16000400 0 0xc00>;
+			interrupts = <GIC_SPI 837 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 0xd3>,
+				 <&cpg CPG_MOD 0xd4>;
+			clock-names = "video", "apb";
+			resets = <&cpg 0xc5>, <&cpg 0xc7>;
+			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+
+					csi0_to_cru0: endpoint {
+						remote-endpoint = <&cru0_to_csi0>;
+					};
+				};
+			};
+		};
+
+		csi1: csi2@16010400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16010400 0 0xc00>;
+			interrupts = <GIC_SPI 843 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 0xd6>,
+				 <&cpg CPG_MOD 0xd7>;
+			clock-names = "video", "apb";
+			resets = <&cpg 0xc8>, <&cpg 0xca>;
+			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+
+					csi1_to_cru1: endpoint {
+						remote-endpoint = <&cru1_to_csi1>;
+					};
+				};
+			};
+		};
+
+		csi2: csi2@16020400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16020400 0 0xc00>;
+			interrupts = <GIC_SPI 849 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 0xd9>,
+				 <&cpg CPG_MOD 0xda>;
+			clock-names = "video", "apb";
+			resets = <&cpg 0xcb>, <&cpg 0xcd>;
+			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+
+					csi2_to_cru2: endpoint {
+						remote-endpoint = <&cru2_to_csi2>;
+					};
+				};
+			};
+		};
+
+		csi3: csi2@16030400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16030400 0 0xc00>;
+			interrupts = <GIC_SPI 854 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 0xdc>,
+				 <&cpg CPG_MOD 0xdd>;
+			clock-names = "video", "apb";
+			resets = <&cpg 0xce>, <&cpg 0xd0>;
+			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+
+					csi3_to_cru3: endpoint {
+						remote-endpoint = <&cru3_to_csi3>;
+					};
+				};
+			};
+		};
+
 		dsi: dsi@16430000 {
 			compatible = "renesas,r9a09g057-mipi-dsi";
 			reg = <0 0x16430000 0 0x20000>;

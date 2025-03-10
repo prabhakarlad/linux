@@ -180,6 +180,10 @@ enum clk_types {
  * @on_bit: ON bit
  * @mon_index: monitor register index
  * @mon_bit: monitor bit
+ * @external_clk_offset: Offset to check to determine if the clock is external
+ * @external_clk_bit: Bit to check to determine if the clock is external
+ * @external_cond: Condition to determine whether a given clock source is external;
+ *                 it can be either 0 or 1.
  */
 struct rzv2h_mod_clk {
 	const char *name;
@@ -191,9 +195,14 @@ struct rzv2h_mod_clk {
 	u8 on_bit;
 	s8 mon_index;
 	u8 mon_bit;
+	u16 external_clk_offset:10;
+	u8 external_clk_bit:5;
+	u8 external_cond:1;
 };
 
-#define DEF_MOD_BASE(_name, _mstop, _parent, _critical, _no_pm, _onindex, _onbit, _monindex, _monbit) \
+#define DEF_MOD_BASE(_name, _mstop, _parent, _critical, _no_pm, _onindex, \
+		     _onbit, _monindex, _monbit, _external_clk_offset, \
+		     _external_clk_bit, _external_cond) \
 	{ \
 		.name = (_name), \
 		.mstop_data = (_mstop), \
@@ -204,16 +213,27 @@ struct rzv2h_mod_clk {
 		.on_bit = (_onbit), \
 		.mon_index = (_monindex), \
 		.mon_bit = (_monbit), \
+		.external_clk_offset = (_external_clk_offset), \
+		.external_clk_bit = (_external_clk_bit), \
+		.external_cond = (_external_cond), \
 	}
 
 #define DEF_MOD(_name, _parent, _onindex, _onbit, _monindex, _monbit, _mstop) \
-	DEF_MOD_BASE(_name, _mstop, _parent, false, false, _onindex, _onbit, _monindex, _monbit)
+	DEF_MOD_BASE(_name, _mstop, _parent, false, false, _onindex, _onbit, _monindex, _monbit, \
+		     0, 0, 0)
 
 #define DEF_MOD_CRITICAL(_name, _parent, _onindex, _onbit, _monindex, _monbit, _mstop) \
-	DEF_MOD_BASE(_name, _mstop, _parent, true, false, _onindex, _onbit, _monindex, _monbit)
+	DEF_MOD_BASE(_name, _mstop, _parent, true, false, _onindex, _onbit, _monindex, _monbit, \
+		     0, 0, 0)
 
 #define DEF_MOD_NO_PM(_name, _parent, _onindex, _onbit, _monindex, _monbit, _mstop) \
-	DEF_MOD_BASE(_name, _mstop, _parent, false, true, _onindex, _onbit, _monindex, _monbit)
+	DEF_MOD_BASE(_name, _mstop, _parent, false, true, _onindex, _onbit, _monindex, _monbit, \
+		     0, 0, 0)
+
+#define DEF_MOD_EXTERNAL(_name, _parent, _onindex, _onbit, _monindex, _monbit, _mstop, \
+			_external_clk_offset, _external_clk_bit, _external_cond) \
+	DEF_MOD_BASE(_name, _mstop, _parent, false, false, _onindex, _onbit, _monindex, _monbit, \
+		     _external_clk_offset, _external_clk_bit, _external_cond)
 
 /**
  * struct rzv2h_reset - Reset definitions

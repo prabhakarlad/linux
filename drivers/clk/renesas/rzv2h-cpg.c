@@ -566,6 +566,25 @@ static void rzv2h_mod_clock_mstop_disable(struct rzv2h_cpg_priv *priv,
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 }
 
+static bool rzv2h_mod_clock_is_external(struct rzv2h_cpg_priv *priv,
+					u16 ext_clk_offset,
+					u8 ext_clk_bit,
+					u8 ext_cond)
+{
+	u32 value;
+
+	if (!ext_clk_offset)
+		return false;
+
+	value = readl(priv->base + ext_clk_offset) & BIT(ext_clk_bit);
+	value >>= ext_clk_bit;
+
+	if (value == ext_cond)
+		return true;
+
+	return false;
+}
+
 static int rzv2h_mod_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mod_clock *clock = to_mod_clock(hw);
@@ -688,6 +707,11 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 	clock->on_index = mod->on_index;
 	clock->on_bit = mod->on_bit;
 	clock->mon_index = mod->mon_index;
+	/* If clock is coming from external source ignore the monitor bit for it */
+	if (rzv2h_mod_clock_is_external(priv, mod->external_clk_offset,
+					mod->external_clk_bit,
+					mod->external_cond))
+		clock->mon_index = -1;
 	clock->mon_bit = mod->mon_bit;
 	clock->no_pm = mod->no_pm;
 	clock->priv = priv;

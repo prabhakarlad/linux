@@ -30,6 +30,8 @@
 
 struct rzg2l_mipi_dsi;
 
+#define RZ_MIPI_DSI_16BPP	BIT(0)
+
 struct rzg2l_mipi_dsi_hw_info {
 	int (*dphy_init)(struct rzg2l_mipi_dsi *dsi, unsigned long long hsfreq_mhz);
 	void (*dphy_exit)(struct rzg2l_mipi_dsi *dsi);
@@ -38,6 +40,7 @@ struct rzg2l_mipi_dsi_hw_info {
 	unsigned long max_dclk;
 	unsigned long min_dclk;
 	bool has_dphy_rstc;
+	u8 features;
 };
 
 struct rzg2l_mipi_dsi {
@@ -642,7 +645,15 @@ static int rzg2l_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 
 	switch (mipi_dsi_pixel_format_to_bpp(device->format)) {
 	case 24:
+		break;
 	case 18:
+		break;
+	case 16:
+		if (!(dsi->info->features & RZ_MIPI_DSI_16BPP)) {
+			dev_err(dsi->dev, "Unsupported format 0x%04x\n",
+				device->format);
+			return -EINVAL;
+		}
 		break;
 	default:
 		dev_err(dsi->dev, "Unsupported format 0x%04x\n", device->format);

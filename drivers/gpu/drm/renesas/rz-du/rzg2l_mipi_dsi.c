@@ -31,6 +31,7 @@
 struct rzg2l_mipi_dsi;
 
 #define RZ_MIPI_DSI_16BPP	BIT(0)
+#define RZ_MIPI_DSI_HASLPCLK	BIT(1)
 
 struct rzg2l_mipi_dsi_hw_info {
 	int (*dphy_init)(struct rzg2l_mipi_dsi *dsi, unsigned long long hsfreq_mhz);
@@ -63,6 +64,7 @@ struct rzg2l_mipi_dsi {
 	struct drm_bridge *next_bridge;
 
 	struct clk *vclk;
+	struct clk *lpclk;
 
 	enum mipi_dsi_pixel_format format;
 	unsigned int num_data_lanes;
@@ -791,6 +793,12 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	dsi->vclk = devm_clk_get(dsi->dev, "vclk");
 	if (IS_ERR(dsi->vclk))
 		return PTR_ERR(dsi->vclk);
+
+	if (dsi->info->features & RZ_MIPI_DSI_HASLPCLK) {
+		dsi->lpclk = devm_clk_get(dsi->dev, "lpclk");
+		if (IS_ERR(dsi->lpclk))
+			return PTR_ERR(dsi->lpclk);
+	}
 
 	if (dsi->info->has_dphy_rstc) {
 		dsi->rstc = devm_reset_control_get_exclusive(dsi->dev, "rst");

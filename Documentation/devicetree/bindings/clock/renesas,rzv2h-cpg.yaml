@@ -17,11 +17,9 @@ description:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - renesas,r9a09g047-cpg # RZ/G3E
-          - renesas,r9a09g057-cpg # RZ/V2H
-      - const: syscon
+    enum:
+      - renesas,r9a09g047-cpg # RZ/G3E
+      - renesas,r9a09g057-cpg # RZ/V2H
 
   reg:
     maxItems: 1
@@ -75,7 +73,7 @@ additionalProperties: false
 examples:
   - |
     clock-controller@10420000 {
-        compatible = "renesas,r9a09g057-cpg", "syscon";
+        compatible = "renesas,r9a09g057-cpg";
         reg = <0x10420000 0x10000>;
         clocks = <&audio_extal_clk>, <&rtxin_clk>, <&qextal_clk>;
         clock-names = "audio_extal", "rtxin", "qextal";

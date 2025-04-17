@@ -12,6 +12,7 @@
 / {
 	aliases {
 		i2c0 = &i2c0;
+		i2c2 = &i2c_gpio;
 		serial0 = &scif1;
 		serial1 = &scif3;
 		serial3 = &scif0;
@@ -85,6 +86,15 @@
 		gpios = <&pinctrl RZG2L_GPIO(4, 2) GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
+	};
+
+	i2c_gpio: i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		scl-gpios = <&pinctrl RZG2L_GPIO(8, 2) (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&pinctrl RZG2L_GPIO(8, 3) (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 };
 

@@ -195,7 +195,7 @@ static const struct reg_value ov5645_global_init_setting[] = {
 	{ 0x5000, 0xa7 },
 	{ 0x5001, 0x83 },
 	{ 0x501d, 0x00 },
-	{ 0x501f, 0x00 },
+	{ 0x501f, 0x03 },
 	{ 0x503d, 0x00 },
 	{ 0x505c, 0x30 },
 	{ 0x5181, 0x59 },
@@ -409,7 +409,7 @@ static const struct reg_value ov5645_setting_sxga[] = {
 	{ 0x3a18, 0x00 },
 	{ 0x4004, 0x02 },
 	{ 0x4005, 0x18 },
-	{ 0x4300, 0x32 },
+	{ 0x4300, 0x02 },
 	{ 0x4202, 0x00 }
 };
 
@@ -458,7 +458,7 @@ static const struct reg_value ov5645_setting_1080p[] = {
 	{ 0x3a18, 0x00 },
 	{ 0x4004, 0x06 },
 	{ 0x4005, 0x18 },
-	{ 0x4300, 0x32 },
+	{ 0x4300, 0x02 },
 	{ 0x4202, 0x00 },
 	{ 0x4837, 0x0b }
 };
@@ -508,7 +508,7 @@ static const struct reg_value ov5645_setting_full[] = {
 	{ 0x3a18, 0x01 },
 	{ 0x4004, 0x06 },
 	{ 0x4005, 0x18 },
-	{ 0x4300, 0x32 },
+	{ 0x4300, 0x02 },
 	{ 0x4837, 0x0b },
 	{ 0x4202, 0x00 }
 };
@@ -861,7 +861,7 @@ static int ov5645_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad == OV5645_PAD_IMAGE)
 		code->code = OV5645_NATIVE_FORMAT;
 	else
-		code->code = MEDIA_BUS_FMT_UYVY8_1X16;
+		code->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	return 0;
 }
@@ -879,7 +879,7 @@ static int ov5645_enum_frame_size(struct v4l2_subdev *subdev,
 		fse->min_height = OV5645_NATIVE_HEIGHT;
 		fse->max_height = OV5645_NATIVE_HEIGHT;
 	} else {
-		if (fse->code != MEDIA_BUS_FMT_UYVY8_1X16 ||
+		if (fse->code != MEDIA_BUS_FMT_SGRBG8_1X8 ||
 		    fse->index >= ARRAY_SIZE(ov5645_mode_info_data))
 			return -EINVAL;
 
@@ -910,7 +910,7 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 					  ARRAY_SIZE(ov5645_mode_info_data),
 					  width, height, format->format.width,
 					  format->format.height);
-	format->format.code = MEDIA_BUS_FMT_UYVY8_1X16;
+	format->format.code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	format->format.width = new_mode->width;
 	format->format.height = new_mode->height;
 	format->format.field = V4L2_FIELD_NONE;
@@ -989,7 +989,7 @@ static int ov5645_init_state(struct v4l2_subdev *subdev,
 		.pad = OV5645_PAD_SOURCE,
 		.stream = 0,
 		.format = {
-			.code = MEDIA_BUS_FMT_UYVY8_1X16,
+			.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 			.width = ov5645_mode_info_data[1].width,
 			.height = ov5645_mode_info_data[1].height,
 		},

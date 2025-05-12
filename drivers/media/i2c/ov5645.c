@@ -369,7 +369,7 @@ static const struct reg_value ov5645_setting_sxga[] = {
 	{ 0x3612, 0xa9 },
 	{ 0x3614, 0x50 },
 	{ 0x3618, 0x00 },
-	{ 0x3034, 0x1a },
+	{ 0x3034, 0x18 },
 	{ 0x3035, 0x21 },
 	{ 0x3036, 0x70 },
 	{ 0x3600, 0x09 },
@@ -417,7 +417,7 @@ static const struct reg_value ov5645_setting_1080p[] = {
 	{ 0x3612, 0xab },
 	{ 0x3614, 0x50 },
 	{ 0x3618, 0x04 },
-	{ 0x3034, 0x1a },
+	{ 0x3034, 0x18 },
 	{ 0x3035, 0x11 },
 	{ 0x3036, 0x54 },
 	{ 0x3600, 0x08 },
@@ -467,7 +467,7 @@ static const struct reg_value ov5645_setting_full[] = {
 	{ 0x3612, 0xab },
 	{ 0x3614, 0x50 },
 	{ 0x3618, 0x04 },
-	{ 0x3034, 0x1a },
+	{ 0x3034, 0x18 },
 	{ 0x3035, 0x11 },
 	{ 0x3036, 0x54 },
 	{ 0x3600, 0x08 },
@@ -861,7 +861,7 @@ static int ov5645_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad == OV5645_PAD_IMAGE)
 		code->code = OV5645_NATIVE_FORMAT;
 	else
-		code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
+		code->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	return 0;
 }
@@ -879,7 +879,7 @@ static int ov5645_enum_frame_size(struct v4l2_subdev *subdev,
 		fse->min_height = OV5645_NATIVE_HEIGHT;
 		fse->max_height = OV5645_NATIVE_HEIGHT;
 	} else {
-		if (fse->code != MEDIA_BUS_FMT_SGRBG10_1X10 ||
+		if (fse->code != MEDIA_BUS_FMT_SGRBG8_1X8 ||
 		    fse->index >= ARRAY_SIZE(ov5645_mode_info_data))
 			return -EINVAL;
 
@@ -910,7 +910,7 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 					  ARRAY_SIZE(ov5645_mode_info_data),
 					  width, height, format->format.width,
 					  format->format.height);
-	format->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	format->format.code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	format->format.width = new_mode->width;
 	format->format.height = new_mode->height;
 	format->format.field = V4L2_FIELD_NONE;
@@ -989,7 +989,7 @@ static int ov5645_init_state(struct v4l2_subdev *subdev,
 		.pad = OV5645_PAD_SOURCE,
 		.stream = 0,
 		.format = {
-			.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+			.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 			.width = ov5645_mode_info_data[1].width,
 			.height = ov5645_mode_info_data[1].height,
 		},

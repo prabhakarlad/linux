@@ -184,6 +184,8 @@
 			clocks = <&cpg CPG_CORE R9A09G056_IOTOP_0_SHCLK>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			gpio-ranges = <&pinctrl 0 0 96>;
 			power-domains = <&cpg>;
 			resets = <&cpg 0xa5>, <&cpg 0xa6>;

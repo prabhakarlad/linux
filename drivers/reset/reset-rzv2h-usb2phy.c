@@ -12,8 +12,11 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
+
+#define VBENCTL			0xf0c
 
 struct rzv2h_usb2phy_regval {
 	u16 reg;
@@ -38,6 +41,7 @@ struct rzv2h_usb2phy_reset_of_data {
 struct rzv2h_usb2phy_reset_priv {
 	const struct rzv2h_usb2phy_reset_of_data *data;
 	void __iomem *base;
+	struct platform_device *vdev;
 	struct device *dev;
 	struct reset_controller_dev rcdev;
 	spinlock_t lock; /* protects register accesses */
@@ -141,12 +145,21 @@ static int rzv2h_usb2phy_reset_of_xlate(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static const struct regmap_config rzg2l_usb_regconf = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = 1,
+};
+
 static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 {
 	const struct rzv2h_usb2phy_reset_of_data *data;
 	struct rzv2h_usb2phy_reset_priv *priv;
 	struct device *dev = &pdev->dev;
+	struct platform_device *vdev;
 	struct reset_control *rstc;
+	struct regmap *regmap;
 	int error;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -159,6 +172,11 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
+
+	regmap = devm_regmap_init_mmio(dev, priv->base + VBENCTL,
+				       &rzg2l_usb_regconf);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	rstc = devm_reset_control_get_shared_deasserted(dev, NULL);
 	if (IS_ERR(rstc))
@@ -190,7 +208,34 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	priv->rcdev.of_node = dev->of_node;
 	priv->rcdev.dev = dev;
 
-	return devm_reset_controller_register(dev, &priv->rcdev);
+	error = devm_reset_controller_register(dev, &priv->rcdev);
+	if (error)
+		return dev_err_probe(dev, error, "devm_reset_controller_register failed\n");
+
+	vdev = platform_device_alloc("rzg2l-usb-vbus-regulator",
+				     PLATFORM_DEVID_AUTO);
+	if (!vdev) {
+		error = -ENOMEM;
+		return dev_err_probe(dev, error, "Failed to allocate vdev\n");
+	}
+	vdev->dev.parent = dev;
+	priv->vdev = vdev;
+
+	device_set_of_node_from_dev(&vdev->dev, dev);
+	error = platform_device_add(vdev);
+	if (error) {
+		platform_device_put(vdev);
+		return dev_err_probe(dev, error, "Failed to add vdev\n");
+	}
+
+	return 0;
+}
+
+static void rzv2h_usb2phy_reset_remove(struct platform_device *pdev)
+{
+	struct rzv2h_usb2phy_reset_priv *priv = dev_get_drvdata(&pdev->dev);
+
+	platform_device_unregister(priv->vdev);
 }
 
 /*
@@ -228,6 +273,7 @@ static struct platform_driver rzv2h_usb2phy_reset_driver = {
 		.of_match_table	= rzv2h_usb2phy_reset_of_match,
 	},
 	.probe = rzv2h_usb2phy_reset_probe,
+	.remove = rzv2h_usb2phy_reset_remove,
 };
 module_platform_driver(rzv2h_usb2phy_reset_driver);
 

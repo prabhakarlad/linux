@@ -676,6 +676,7 @@
 	pinctrl-0 = <&usb20_pins>;
 	pinctrl-names = "default";
 
+	vbus-supply = <&usb20_vbus_otg>;
 	status = "okay";
 };
 
@@ -683,6 +684,7 @@
 	pinctrl-0 = <&usb21_pins>;
 	pinctrl-names = "default";
 
+	vbus-supply = <&usb21_vbus_otg>;
 	status = "okay";
 };
 

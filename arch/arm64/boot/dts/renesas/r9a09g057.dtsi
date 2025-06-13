@@ -992,6 +992,10 @@
 			power-domains = <&cpg>;
 			#reset-cells = <0>;
 			status = "disabled";
+
+			usb20_vbus_otg: regulator-vbus {
+				regulator-name = "vbus";
+			};
 		};
 
 		usb21phyrst: usb21phy-reset@15840000 {
@@ -1002,6 +1006,10 @@
 			power-domains = <&cpg>;
 			#reset-cells = <0>;
 			status = "disabled";
+
+			usb21_vbus_otg: regulator-vbus {
+				regulator-name = "vbus";
+			};
 		};
 
 		sdhi0: mmc@15c00000  {

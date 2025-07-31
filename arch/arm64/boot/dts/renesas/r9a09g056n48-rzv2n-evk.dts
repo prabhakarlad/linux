@@ -7,6 +7,8 @@
 
 /dts-v1/;
 
+#define ENABLE_I3C	0
+
 #include <dt-bindings/gpio/gpio.h>
 #include "r9a09g056.dtsi"
 
@@ -24,6 +26,7 @@
 		i2c6 = &i2c6;
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;
+		i2c9 = &i3c;
 		mmc1 = &sdhi1;
 		serial0 = &scif;
 	};
@@ -172,7 +175,9 @@
 	pinctrl-0 = <&i2c2_pins>;
 	pinctrl-names = "default";
 	clock-frequency = <400000>;
+#if !ENABLE_I3C
 	status = "okay";
+#endif
 };
 
 &i2c3 {
@@ -246,6 +251,45 @@
 		clock-names = "xin";
 	};
 };
+
+#if ENABLE_I3C
+#if 1
+&i3c {
+	pinctrl-0 = <&i3c0_pins>;
+	pinctrl-names = "default";
+
+	i2c-scl-hz = <1000000>;
+	i3c-scl-hz = <2000000>; /* slow Logic Analyzer here */
+
+	status = "okay";
+};
+#else
+&i3c {
+	pinctrl-0 = <&i3c0_pins>;
+	pinctrl-names = "default";
+
+	i2c-scl-hz = <400000>;		/* Max speed of the ADT7411 below */
+	/*
+	 * 10MHz works somewhat with my 24MHz logic analyzer as well as
+	 * signal width < 50ns for the legacy I2C filters
+	 */
+	i3c-scl-hz = <10000000>;
+	status = "okay";
+
+	/* U2 */
+	temperature-sensor@48 {
+		compatible = "nxp,p3t1085";
+		reg = <0x48 0 (I2C_FM | I2C_FILTER)>;
+	};
+
+	/* U1 NOT MOUNTED */
+	temp-sense@4c {
+		compatible = "national,lm75";
+		reg = <0x4c 0 (I2C_FM | I2C_FILTER)>;
+	};
+};
+#endif
+#endif
 
 &mdio0 {
 	phy0: ethernet-phy@0 {
@@ -370,6 +414,11 @@
 	i2c8_pins: i2c8 {
 		pinmux = <RZV2N_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
 			 <RZV2N_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
+	};
+
+	i3c0_pins: i3c0 {
+		pinmux = <RZV2N_PORT_PINMUX(2, 0, 1)>, /* I3C0_SCL */
+			 <RZV2N_PORT_PINMUX(2, 1, 1)>; /* I3C0_SDA */
 	};
 
 	scif_pins: scif {

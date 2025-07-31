@@ -448,6 +448,43 @@
 	};
 };
 
+#if 1
+&i3c0 {
+	pinctrl-0 = <&i3c0_pins>;
+	pinctrl-names = "default";
+
+	i2c-scl-hz = <1000000>;
+	i3c-scl-hz = <2000000>; /* slow Logic Analyzer here */
+
+	status = "okay";
+};
+#else
+&i3c0 {
+	pinctrl-0 = <&i3c0_pins>;
+	pinctrl-names = "default";
+
+	i2c-scl-hz = <400000>;		/* Max speed of the ADT7411 below */
+	/*
+	 * 10MHz works somewhat with my 24MHz logic analyzer as well as
+	 * signal width < 50ns for the legacy I2C filters
+	 */
+	i3c-scl-hz = <10000000>;
+	status = "okay";
+
+	/* U2 */
+	temperature-sensor@48 {
+		compatible = "nxp,p3t1085";
+		reg = <0x48 0 (I2C_FM | I2C_FILTER)>;
+	};
+
+	/* U1 NOT MOUNTED */
+	temp-sense@4c {
+		compatible = "national,lm75";
+		reg = <0x4c 0 (I2C_FM | I2C_FILTER)>;
+	};
+};
+#endif
+
 &mdio0 {
 	phy0: ethernet-phy@0 {
 		compatible = "ethernet-phy-id0022.1640", "ethernet-phy-ieee802.3-c22";
@@ -571,6 +608,11 @@
 	i2c8_pins: i2c8 {
 		pinmux = <RZV2H_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
 			 <RZV2H_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
+	};
+
+	i3c0_pins: i3c0 {
+		pinmux = <RZV2H_PORT_PINMUX(2, 0, 1)>, /* I3C0_SCL */
+			 <RZV2H_PORT_PINMUX(2, 1, 1)>; /* I3C0_SDA */
 	};
 
 	scif_pins: scif {

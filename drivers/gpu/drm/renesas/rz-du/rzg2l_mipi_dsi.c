@@ -96,6 +96,7 @@ struct rzg2l_mipi_dsi {
 };
 
 static const struct rzv2h_pll_limits rzv2h_plldsi_div_limits = {
+	.input_fref = 24 * MEGA,
 	.fout = { .min = 80 * MEGA, .max = 1500 * MEGA },
 	.fvco = { .min = 1050 * MEGA, .max = 2100 * MEGA },
 	.m = { .min = 64, .max = 1023 },

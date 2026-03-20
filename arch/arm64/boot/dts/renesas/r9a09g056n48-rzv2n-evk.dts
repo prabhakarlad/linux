@@ -29,6 +29,19 @@
 		serial0 = &scif;
 	};
 
+	cam0_inclk: clock0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	cam0_reg: camera0_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_reg";
+		gpios = <&pinctrl RZV2N_GPIO(B, 2) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	chosen {
 		bootargs = "ignore_loglevel";
 		stdout-path = "serial0:115200n8";
@@ -136,6 +149,24 @@
 	status = "okay";
 };
 
+&cru0 {
+	status = "okay";
+};
+
+&csi0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			csi0_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&imx708_out>;
+			};
+		};
+	};
+};
+
 &ehci0 {
 	dr_mode = "otg";
 	status = "okay";
@@ -170,8 +201,28 @@
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
-	clock-frequency = <400000>;
+	clock-frequency = <100000>;
 	status = "okay";
+
+	imx708: sensor@1a {
+		compatible = "sony,imx708";
+		reg = <0x1a>;
+		status = "okay";
+
+		clocks = <&cam0_inclk>;
+		clock-names = "inclk";
+
+		vana1-supply = <&cam0_reg>;
+
+		port {
+			imx708_out: endpoint {
+				remote-endpoint = <&csi0_in>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -256,6 +307,14 @@
 		clocks = <&x6>;
 		clock-names = "xin";
 	};
+};
+
+&ivc {
+	status = "okay";
+};
+
+&isp {
+	status = "okay";
 };
 
 &mdio0 {

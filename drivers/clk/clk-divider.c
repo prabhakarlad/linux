@@ -383,11 +383,16 @@ int divider_ro_determine_rate(struct clk_hw *hw, struct clk_rate_request *req,
 
 	/* Even a read-only clock can propagate a rate change */
 	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
+		unsigned long parent_req;
+
 		if (!req->best_parent_hw)
 			return -EINVAL;
 
+		if (check_mul_overflow(req->rate, (unsigned long)div,
+				       &parent_req))
+			parent_req = ULONG_MAX;
 		req->best_parent_rate = clk_hw_round_rate(req->best_parent_hw,
-							  req->rate * div);
+							  parent_req);
 	}
 
 	req->rate = DIV_ROUND_UP_ULL((u64)req->best_parent_rate, div);

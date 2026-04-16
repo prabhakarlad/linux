@@ -12,6 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/limits.h>
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -64,6 +65,7 @@ struct rzg2l_mipi_dsi_hw_info {
 struct rzv2h_dsi_mode_calc {
 	unsigned long mode_freq_khz;
 	struct rzv2h_pll_pars dsi_parameters;
+	struct rzv2h_pll_div_pars cpg_dsi_div_parameters;
 };
 
 struct rzg2l_mipi_dsi {
@@ -569,34 +571,53 @@ static unsigned int rzv2h_dphy_mode_clk_check(struct rzg2l_mipi_dsi *dsi,
 					      unsigned long mode_freq)
 {
 	u64 hsfreq_millihz, mode_freq_hz, mode_freq_millihz;
+	struct rzv2h_pll_div_pars best_cpg_dsi_parameters;
 	struct rzv2h_pll_div_pars cpg_dsi_parameters;
+	struct rzv2h_pll_pars best_dsi_parameters;
 	struct rzv2h_pll_pars dsi_parameters;
+	bool found_valid_parameters = false;
 	bool parameters_found;
-	unsigned int bpp;
+	unsigned int bpp, i;
 
+	best_dsi_parameters.error_millihz = S64_MAX;
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
 	mode_freq_hz = mul_u32_u32(mode_freq, KILO);
 	mode_freq_millihz = mode_freq_hz * MILLI;
-	parameters_found =
-		rzv2h_get_pll_divs_pars(dsi->info->cpg_plldsi.limits[0],
-					&cpg_dsi_parameters,
-					dsi->info->cpg_plldsi.table,
-					dsi->info->cpg_plldsi.table_size,
-					mode_freq_millihz);
-	if (!parameters_found)
+	for (i = 0; i < dsi->info->cpg_plldsi.table_size; i++) {
+		u8 table[1];
+
+		table[0] = dsi->info->cpg_plldsi.table[i];
+		parameters_found =
+			rzv2h_get_pll_divs_pars(dsi->info->cpg_plldsi.limits[0],
+						&cpg_dsi_parameters, table, 1,
+						mode_freq_millihz);
+		if (!parameters_found)
+			continue;
+
+		hsfreq_millihz = DIV_ROUND_CLOSEST_ULL(cpg_dsi_parameters.div.freq_millihz * bpp,
+						       dsi->lanes);
+		parameters_found = rzv2h_get_pll_pars(&rzv2h_plldsi_div_limits,
+						      &dsi_parameters, hsfreq_millihz);
+		if (!parameters_found)
+			continue;
+
+		if (abs(dsi_parameters.error_millihz) >= 500)
+			continue;
+
+		if (abs(best_dsi_parameters.error_millihz) > abs(dsi_parameters.error_millihz)) {
+			best_cpg_dsi_parameters = cpg_dsi_parameters;
+			best_dsi_parameters = dsi_parameters;
+			found_valid_parameters = true;
+		}
+	}
+
+	if (!found_valid_parameters)
 		return MODE_CLOCK_RANGE;
 
-	hsfreq_millihz = DIV_ROUND_CLOSEST_ULL(cpg_dsi_parameters.div.freq_millihz * bpp,
-					       dsi->lanes);
-	parameters_found = rzv2h_get_pll_pars(&rzv2h_plldsi_div_limits,
-					      &dsi_parameters, hsfreq_millihz);
-	if (!parameters_found)
-		return MODE_CLOCK_RANGE;
-
-	if (abs(dsi_parameters.error_millihz) >= 500)
-		return MODE_CLOCK_RANGE;
-
-	memcpy(&dsi->mode_calc.dsi_parameters, &dsi_parameters, sizeof(dsi_parameters));
+	memcpy(&dsi->mode_calc.dsi_parameters, &best_dsi_parameters,
+	       sizeof(best_dsi_parameters));
+	memcpy(&dsi->mode_calc.cpg_dsi_div_parameters, &best_cpg_dsi_parameters,
+	       sizeof(best_cpg_dsi_parameters));
 	dsi->mode_calc.mode_freq_khz = mode_freq;
 
 	return MODE_OK;
@@ -617,6 +638,7 @@ static int rzv2h_dphy_conf_clks(struct rzg2l_mipi_dsi *dsi, unsigned long mode_f
 		}
 	}
 
+	rzv2h_cache_pll_pars(dsi->mode_calc.cpg_dsi_div_parameters, 0);
 	*hsfreq_millihz = dsi_parameters->freq_millihz;
 
 	return 0;

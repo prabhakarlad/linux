@@ -230,25 +230,34 @@ void rzv2h_cache_pll_pars(struct rzv2h_pll_div_pars pars, unsigned int dsi_insta
 EXPORT_SYMBOL_GPL(rzv2h_cache_pll_pars);
 
 /**
- * rzv2h_get_pll_pars - Finds the best combination of PLL parameters
- * for a given frequency.
+ * rzv2h_get_pll_pars_validate - Finds the best combination of PLL parameters
+ * for a given frequency with validation callback.
  *
  * @limits: Pointer to the structure containing the limits for the PLL parameters
  * @pars: Pointer to the structure where the best calculated PLL parameters values
  * will be stored
  * @freq_millihz: Target output frequency in millihertz
+ * @validator: Pointer to a structure containing a validation callback and context
  *
  * This function calculates the best set of PLL parameters (M, K, P, S) to achieve
  * the desired frequency.
  * There is no direct formula to calculate the PLL parameters, as it's an open
  * system of equations, therefore this function uses an iterative approach to
- * determine the best solution. The best solution is one that minimizes the error
- * (desired frequency - actual frequency).
+ * determine the best solution.
+ *
+ * When validator is NULL, the function searches for the solution that minimizes
+ * the error (desired frequency - actual frequency) and returns the best match.
+ *
+ * When validator is provided, the function returns immediately upon finding the
+ * first set of parameters for which the validator callback returns true. This
+ * allows early exit when additional constraints beyond frequency matching need
+ * to be satisfied (e.g., derived PLL parameters must also meet certain criteria).
  *
  * Return: true if a valid set of parameters values is found, false otherwise.
  */
-bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
-			struct rzv2h_pll_pars *pars, u64 freq_millihz)
+bool rzv2h_get_pll_pars_validate(const struct rzv2h_pll_limits *limits,
+				 struct rzv2h_pll_pars *pars, u64 freq_millihz,
+				 const struct rzv2h_pll_validator *validator)
 {
 	unsigned long input_fref = limits->input_fref ?: RZ_V2H_OSC_CLK_IN_MEGA;
 	u64 fout_min_millihz = mul_u32_u32(limits->fout.min, MILLI);
@@ -359,6 +368,15 @@ bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
 				p.error_millihz = freq_millihz - output;
 				p.freq_millihz = output;
 
+				/* Apply custom validation if provided */
+				if (validator) {
+					/* If validation passed, return immediately */
+					if (validator->validate(&p, validator->context)) {
+						*pars = p;
+						return true;
+					}
+				}
+
 				/* If an exact match is found, return immediately */
 				if (p.error_millihz == 0) {
 					*pars = p;
@@ -378,6 +396,24 @@ bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
 
 	*pars = best;
 	return true;
+}
+EXPORT_SYMBOL_NS_GPL(rzv2h_get_pll_pars_validate, "RZV2H_CPG");
+
+/**
+ * rzv2h_get_pll_pars - Finds the best combination of PLL parameters
+ * for a given frequency.
+ *
+ * @limits: Pointer to the structure containing the limits for the PLL parameters
+ * @pars: Pointer to the structure where the best calculated PLL parameters values
+ * will be stored
+ * @freq_millihz: Target output frequency in millihertz
+ *
+ * See rzv2h_get_pll_pars_validate() for more details.
+ */
+bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
+			struct rzv2h_pll_pars *pars, u64 freq_millihz)
+{
+	return rzv2h_get_pll_pars_validate(limits, pars, freq_millihz, NULL);
 }
 EXPORT_SYMBOL_NS_GPL(rzv2h_get_pll_pars, "RZV2H_CPG");
 

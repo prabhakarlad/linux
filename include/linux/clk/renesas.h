@@ -189,6 +189,17 @@ struct rzv2h_pll_div_pars {
 		.k = { .min = -32768, .max = 32767 },			\
 	}								\
 
+/**
+ * struct rzv2h_pll_validator - Callback structure for custom PLL parameter validation
+ *
+ * @validate: Validation function that checks if the computed PLL parameters are acceptable
+ * @context: Opaque pointer to any data needed by the validation function
+ */
+struct rzv2h_pll_validator {
+	bool (*validate)(const struct rzv2h_pll_pars *pars, void *context);
+	void *context;
+};
+
 #ifdef CONFIG_CLK_RZV2H
 bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
 			struct rzv2h_pll_pars *pars, u64 freq_millihz);
@@ -197,6 +208,9 @@ bool rzv2h_get_pll_divs_pars(const struct rzv2h_pll_limits *limits,
 			     struct rzv2h_pll_div_pars *pars,
 			     const u8 *table, u8 table_size, u64 freq_millihz);
 void rzv2h_cache_pll_pars(struct rzv2h_pll_div_pars pars, unsigned int dsi_instance);
+bool rzv2h_get_pll_pars_validate(const struct rzv2h_pll_limits *limits,
+				 struct rzv2h_pll_pars *pars, u64 freq_millihz,
+				 const struct rzv2h_pll_validator *validator);
 #else
 static inline bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
 				      struct rzv2h_pll_pars *pars,
@@ -217,6 +231,12 @@ static void rzv2h_cache_pll_pars(struct rzv2h_pll_div_pars pars, unsigned int ds
 {
 }
 
+static bool rzv2h_get_pll_pars_validate(const struct rzv2h_pll_limits *limits,
+					struct rzv2h_pll_pars *pars, u64 freq_millihz,
+					const struct rzv2h_pll_validator *validator)
+{
+	return false;
+}
 #endif
 
 #endif

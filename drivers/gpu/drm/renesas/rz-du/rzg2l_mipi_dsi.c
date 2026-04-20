@@ -68,6 +68,13 @@ struct rzv2h_dsi_mode_calc {
 	struct rzv2h_pll_div_pars cpg_dsi_div_parameters;
 };
 
+struct rzv2h_dsi_validator_context {
+	struct rzv2h_pll_pars *dsi_pars;
+	unsigned int lanes;
+	unsigned int bpp;
+	u8 base_divider;
+};
+
 struct rzg2l_mipi_dsi {
 	struct device *dev;
 	void __iomem *mmio;
@@ -567,6 +574,69 @@ static int rzg2l_dphy_conf_clks(struct rzg2l_mipi_dsi *dsi, unsigned long mode_f
 	return 0;
 }
 
+/* DSI-specific validation callback */
+static bool rzv2h_dsi_validate_pll_pars(const struct rzv2h_pll_pars *pars, void *context)
+{
+	struct rzv2h_dsi_validator_context *ctx = context;
+	u64 hsfreq_millihz;
+
+	/* Check error threshold for CPG PLL DSI */
+	if (abs(pars->error_millihz) > 50000)
+		return false;
+
+	/* Calculate the required DSI frequency */
+	hsfreq_millihz = DIV_U64_ROUND_CLOSEST(pars->freq_millihz, ctx->base_divider);
+	hsfreq_millihz = DIV_ROUND_CLOSEST_ULL(hsfreq_millihz * ctx->bpp, ctx->lanes);
+
+	/* Find DSI PLL parameters */
+	if (!rzv2h_get_pll_pars(&rzv2h_plldsi_div_limits, ctx->dsi_pars, hsfreq_millihz))
+		return false;
+
+	/* Check DSI error threshold */
+	if (abs(ctx->dsi_pars->error_millihz) >= 500)
+		return false;
+
+	return true;
+}
+
+static bool rzv2h_dsi_get_pll_divs_pars(const struct rzv2h_pll_limits *limits,
+					struct rzv2h_pll_div_pars *pars,
+					const u8 *table, u8 table_size, u64 freq_millihz,
+					unsigned int bpp, unsigned int lanes,
+					struct rzv2h_pll_pars *dsi_pars)
+{
+	struct rzv2h_dsi_validator_context ctx = {
+		.dsi_pars = dsi_pars,
+		.lanes = lanes,
+		.bpp = bpp,
+	};
+	struct rzv2h_pll_validator validator = {
+		.validate = rzv2h_dsi_validate_pll_pars,
+		.context = &ctx,
+	};
+	struct rzv2h_pll_pars temp_dsi_pars;
+	struct rzv2h_pll_div_pars p;
+
+	ctx.dsi_pars = &temp_dsi_pars;
+	for (unsigned int i = 0; i < table_size; i++) {
+		ctx.base_divider = table[i];
+
+		if (!rzv2h_get_pll_pars_validate(limits, &p.pll,
+						 freq_millihz * table[i], &validator))
+			continue;
+
+		p.div.divider_value = table[i];
+		p.div.freq_millihz = DIV_U64_ROUND_CLOSEST(p.pll.freq_millihz, table[i]);
+		p.div.error_millihz = freq_millihz - p.div.freq_millihz;
+
+		*dsi_pars = temp_dsi_pars;
+		*pars = p;
+		return true;
+	}
+
+	return false;
+}
+
 static unsigned int rzv2h_dphy_mode_clk_check(struct rzg2l_mipi_dsi *dsi,
 					      unsigned long mode_freq)
 {
@@ -611,8 +681,17 @@ static unsigned int rzv2h_dphy_mode_clk_check(struct rzg2l_mipi_dsi *dsi,
 		}
 	}
 
-	if (!found_valid_parameters)
-		return MODE_CLOCK_RANGE;
+	if (!found_valid_parameters) {
+		parameters_found = rzv2h_dsi_get_pll_divs_pars(&rzv2h_plldsi_div_limits,
+							       &best_cpg_dsi_parameters,
+							       dsi->info->cpg_plldsi.table,
+							       dsi->info->cpg_plldsi.table_size,
+							       mode_freq_millihz,
+							       bpp, dsi->lanes,
+							       &best_dsi_parameters);
+		if (!parameters_found)
+			return MODE_CLOCK_RANGE;
+	}
 
 	memcpy(&dsi->mode_calc.dsi_parameters, &best_dsi_parameters,
 	       sizeof(best_dsi_parameters));

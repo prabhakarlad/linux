@@ -196,6 +196,7 @@ bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
 bool rzv2h_get_pll_divs_pars(const struct rzv2h_pll_limits *limits,
 			     struct rzv2h_pll_div_pars *pars,
 			     const u8 *table, u8 table_size, u64 freq_millihz);
+void rzv2h_cache_pll_pars(struct rzv2h_pll_div_pars pars, unsigned int dsi_instance);
 #else
 static inline bool rzv2h_get_pll_pars(const struct rzv2h_pll_limits *limits,
 				      struct rzv2h_pll_pars *pars,
@@ -211,6 +212,11 @@ static inline bool rzv2h_get_pll_divs_pars(const struct rzv2h_pll_limits *limits
 {
 	return false;
 }
+
+static void rzv2h_cache_pll_pars(struct rzv2h_pll_div_pars pars, unsigned int dsi_instance)
+{
+}
+
 #endif
 
 #endif

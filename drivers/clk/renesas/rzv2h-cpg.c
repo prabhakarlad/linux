@@ -81,6 +81,8 @@
 #define CPG_PLLDSI_SMUX_DSI_RGB_DUTY_NUM	1
 #define CPG_PLLDSI_SMUX_DSI_RGB_DUTY_DEN	2
 
+static struct rzv2h_pll_div_pars cache_pll_dsi_parameters[MAX_CPG_DSI_PLL];
+
 /**
  * struct rzv2h_pll_dsi_info - PLL DSI information, holds the limits and parameters
  *
@@ -220,6 +222,12 @@ struct rzv2h_plldsi_div_clk {
 
 #define RZ_V2H_OSC_CLK_IN_MEGA		(24 * MEGA)
 #define RZV2H_MAX_DIV_TABLES		(16)
+
+void rzv2h_cache_pll_pars(struct rzv2h_pll_div_pars pars, unsigned int dsi_instance)
+{
+	cache_pll_dsi_parameters[dsi_instance] = pars;
+}
+EXPORT_SYMBOL_GPL(rzv2h_cache_pll_pars);
 
 /**
  * rzv2h_get_pll_pars - Finds the best combination of PLL parameters
@@ -471,6 +479,12 @@ static int rzv2h_cpg_plldsi_div_determine_rate(struct clk_hw *hw,
 	dsi_params = &dsi_info->pll_dsi_parameters;
 
 	rate_millihz = mul_u32_u32(req->rate, MILLI);
+	if (rate_millihz == cache_pll_dsi_parameters[pll_clk->pll.instance].div.error_millihz +
+	    cache_pll_dsi_parameters[pll_clk->pll.instance].div.freq_millihz) {
+		*dsi_params = cache_pll_dsi_parameters[pll_clk->pll.instance];
+		goto exit_determine_rate;
+	}
+
 	if (rate_millihz == dsi_params->div.error_millihz + dsi_params->div.freq_millihz)
 		goto exit_determine_rate;
 

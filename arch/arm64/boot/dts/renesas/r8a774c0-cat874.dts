@@ -50,11 +50,6 @@
 			label = "LED1";
 		};
 
-		led2 {
-			gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
-			label = "LED2";
-		};
-
 		led3 {
 			gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;
 			label = "LED3";
@@ -115,16 +110,24 @@
 		states = <3300000 1>, <1800000 0>;
 	};
 
-	wlan_en_reg: fixedregulator {
+	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "wlan-en-regulator";
+		regulator-name = "fixed-1.8V";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		startup-delay-us = <70000>;
-
-		gpio = <&gpio2 25 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
 	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 
 	x13_clk: x13 {
 		compatible = "fixed-clock";
@@ -329,7 +332,7 @@
 	};
 
 	sdhi3_pins: sd3 {
-		groups = "sdhi3_data4", "sdhi3_ctrl";
+		groups = "sdhi3_data8", "sdhi3_ctrl", "sdhi3_ds";
 		function = "sdhi3";
 		power-source = <1800>;
 	};
@@ -400,21 +403,19 @@
 &sdhi3 {
 	status = "okay";
 	pinctrl-0 = <&sdhi3_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdhi3_pins>;
+	pinctrl-names = "default", "state_uhs";
 
-	vmmc-supply = <&wlan_en_reg>;
-	bus-width = <4>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	bus-width = <8>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	no-sd;
+	no-sdio;
 	non-removable;
-	cap-power-off-card;
-	keep-power-in-suspend;
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-	wlcore: wlcore@2 {
-		compatible = "ti,wl1837";
-		reg = <2>;
-		interrupts-extended = <&gpio1 0 IRQ_TYPE_LEVEL_HIGH>;
-	};
+	fixed-emmc-driver-type = <1>;
+	status = "okay";
 };
 
 &usb2_phy0 {

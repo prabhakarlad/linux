@@ -729,9 +729,9 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set,
 		struct lock_class_key *lkclass);
 #define blk_mq_alloc_disk(set, lim, queuedata)				\
 ({									\
-	static struct lock_class_key __key;				\
+	static struct lock_class_key __key[2];				\
 									\
-	__blk_mq_alloc_disk(set, lim, queuedata, &__key);		\
+	__blk_mq_alloc_disk(set, lim, queuedata, __key);		\
 })
 struct gendisk *blk_mq_alloc_disk_for_queue(struct request_queue *q,
 		struct lock_class_key *lkclass);

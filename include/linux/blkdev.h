@@ -990,9 +990,9 @@ struct gendisk *__blk_alloc_disk(struct queue_limits *lim, int node,
  */
 #define blk_alloc_disk(lim, node_id)					\
 ({									\
-	static struct lock_class_key __key;				\
+	static struct lock_class_key __key[2];				\
 									\
-	__blk_alloc_disk(lim, node_id, &__key);				\
+	__blk_alloc_disk(lim, node_id, __key);				\
 })
 
 int __register_blkdev(unsigned int major, const char *name,

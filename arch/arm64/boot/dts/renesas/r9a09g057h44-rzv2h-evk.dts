@@ -130,6 +130,14 @@
 	};
 };
 
+&i3c {
+	pinctrl-0 = <&i3c_pins>;
+	pinctrl-names = "default";
+	i2c-scl-hz = <400000>;
+	i3c-scl-hz = <12500000>;
+	status = "okay";
+};
+
 &audio_extal_clk {
 	clock-frequency = <22579200>;
 };
@@ -207,7 +215,7 @@
 	pinctrl-names = "default";
 	clock-frequency = <400000>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c3 {
@@ -405,6 +413,12 @@
 	eth1_pins: eth1 {
 		pins = "ET1_TXC_TXCLK";
 		output-enable;
+	};
+
+	i3c_pins: i3c {
+		pinmux = <RZV2H_PORT_PINMUX(2, 0, 1)>, /* I3C0_SCL */
+			 <RZV2H_PORT_PINMUX(2, 1, 1)>; /* I3C0_SDA */
+		drive-push-pull;
 	};
 
 	i2c0_pins: i2c0 {

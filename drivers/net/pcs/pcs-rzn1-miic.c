@@ -559,6 +559,13 @@ static int miic_init_hw(struct miic *miic, u32 cfg_mode)
 	u8 sw_mode_mask = miic->of_data->sw_mode_mask;
 	int port;
 
+	/* The PRCMD sequencer state at this point is unknown: a prior boot
+	 * stage may have left it part-way through a sequence, and the block
+	 * is not necessarily reset before probe. Writing 0 returns the
+	 * sequencer to IDLE from any state.
+	 */
+	writel(0x0000, miic->base + MIIC_PRCMD);
+
 	/* Unlock write access to accessory registers (cf datasheet). If this
 	 * is going to be used in conjunction with the Cortex-M3, this sequence
 	 * will have to be moved in register write
